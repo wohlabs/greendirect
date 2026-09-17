@@ -2,7 +2,7 @@
 
 # greendirect
 
-> Adds a sidebar panel to the browser with a simple page.
+> Adds a sidebar panel to the browser with a simple React page.
 
 ## Commands
 

@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "firefox:browser_specific_settings": {
     "gecko": {
-      "id": "typescript@extension.js",
+      "id": "react@extension.js",
       "data_collection_permissions": {
         "required": [
           "none"
@@ -14,7 +14,7 @@
     }
   },
   "name": "greendirect",
-  "description": "Adds a sidebar panel to the browser with a simple page.",
+  "description": "Adds a sidebar panel to the browser with a simple React page.",
   "icons": {
     "16": "images/icon-16.png",
     "32": "images/icon-32.png",
@@ -65,7 +65,7 @@
         "<all_urls>"
       ],
       "js": [
-        "content/scripts.ts"
+        "content/scripts.tsx"
       ]
     }
   ]

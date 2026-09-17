@@ -65,5 +65,5 @@ notes in most cases.
 
 ## Version history
 
-- 1.0.0 (unreleased): initial version from the typescript template.
+- 1.0.0 (unreleased): initial version from the react template.
   Not yet submitted to any store.

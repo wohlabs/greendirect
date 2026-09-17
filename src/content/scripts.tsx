@@ -1,4 +1,5 @@
-import createContentApp from './ContentApp'
+import ReactDOM from 'react-dom/client'
+import ContentApp from './ContentApp'
 import './styles.css'
 
 console.log('[From the page context] Hello from content_scripts!')
@@ -27,11 +28,16 @@ export default function initial() {
 
   fetchCSS().then((response) => (styleElement.textContent = response))
 
-  // Render ContentApp inside shadow root
-  const container = createContentApp()
-  shadowRoot.appendChild(container)
+  // Create a container for React to render into
+  const mountingPoint = ReactDOM.createRoot(shadowRoot)
+  mountingPoint.render(
+    <div className="content_script">
+      <ContentApp />
+    </div>
+  )
 
   return () => {
+    mountingPoint.unmount()
     rootDiv.remove()
   }
 }
