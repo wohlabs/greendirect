@@ -1,34 +1,49 @@
+export type RedirectEffort = 'easy' | 'medium' | 'hard'
+
 export type Redirect = {
   id: number
   from: string
   to: string
   description?: string
   enabled: boolean
+  effort: RedirectEffort
 }
 
 export const REDIRECT_STORAGE_KEY = 'greendirect.redirects'
 
+export const EFFORT_LABELS: Record<RedirectEffort, string> = {
+  easy: 'Easy switch',
+  medium: 'Medium effort',
+  hard: 'High effort',
+}
+
 export const defaultRedirects: Redirect[] = [
-  { id: 1, from: 'google.com', to: 'ecosia.org', description: 'Search with a tree-planting search engine', enabled: true },
-  { id: 2, from: 'booking.com', to: 'bookdifferent.com', description: 'Book hotels with eco-certified stays ranked first and half of revenue donated to charity', enabled: true },
-  { id: 3, from: 'amazon.com', to: 'etsy.com', description: 'Support small makers and independent shops', enabled: false },
-  { id: 4, from: 'airbnb.com', to: 'ecobnb.com', description: 'Stay in eco-friendly accommodations, from organic farmhouses to green apartments', enabled: false },
-  { id: 5, from: 'doordash.com', to: 'toogoodtogo.com', description: 'Rescue surplus food from local shops instead of ordering new', enabled: false },
+  { id: 1, from: 'google.com', to: 'ecosia.org', description: 'Search with a tree-planting search engine', enabled: true, effort: 'easy' },
+  { id: 2, from: 'booking.com', to: 'bookdifferent.com', description: 'Book hotels with eco-certified stays ranked first and half of revenue donated to charity', enabled: true, effort: 'easy' },
+  { id: 3, from: 'amazon.com', to: 'etsy.com', description: 'Support small makers and independent shops', enabled: false, effort: 'medium' },
+  { id: 4, from: 'airbnb.com', to: 'ecobnb.com', description: 'Stay in eco-friendly accommodations, from organic farmhouses to green apartments', enabled: false, effort: 'medium' },
+  { id: 5, from: 'doordash.com', to: 'toogoodtogo.com', description: 'Rescue surplus food from local shops instead of ordering new', enabled: false, effort: 'medium' },
 
   // Popular, drop-in swaps first
-  { id: 6, from: 'zara.com', to: 'vinted.com', description: 'Buy and sell secondhand fashion instead of fast fashion', enabled: true },
-  { id: 7, from: 'shein.com', to: 'thredup.com', description: 'Shop pre-loved clothing and keep it out of landfill', enabled: true },
-  { id: 8, from: 'bestbuy.com', to: 'backmarket.com', description: 'Refurbished phones, laptops and gadgets with less e-waste', enabled: true },
-  { id: 9, from: 'barnesandnoble.com', to: 'betterworldbooks.com', description: 'Used books that fund literacy and reduce waste', enabled: false },
-  { id: 10, from: 'bing.com', to: 'oceanhero.today', description: 'Search and help pull plastic out of the ocean', enabled: false },
+  { id: 6, from: 'zara.com', to: 'vinted.com', description: 'Buy and sell secondhand fashion instead of fast fashion', enabled: true, effort: 'easy' },
+  { id: 7, from: 'shein.com', to: 'thredup.com', description: 'Shop pre-loved clothing and keep it out of landfill', enabled: true, effort: 'easy' },
+  { id: 8, from: 'bestbuy.com', to: 'backmarket.com', description: 'Refurbished phones, laptops and gadgets with less e-waste', enabled: true, effort: 'easy' },
+  { id: 9, from: 'barnesandnoble.com', to: 'betterworldbooks.com', description: 'Used books that fund literacy and reduce waste', enabled: false, effort: 'medium' },
+  { id: 10, from: 'bing.com', to: 'oceanhero.today', description: 'Search and help pull plastic out of the ocean', enabled: false, effort: 'medium' },
 
   // Accounts and services that take more effort to switch
-  { id: 11, from: 'mail.google.com', to: 'posteo.de', description: 'Private, renewable-powered email', enabled: false },
-  { id: 12, from: 'workspace.google.com', to: 'infomaniak.com', description: 'Swiss email, storage and office tools on renewable energy', enabled: false },
-  { id: 13, from: 'mailchimp.com', to: 'ecosend.io', description: 'Email marketing that offsets the emissions of every campaign', enabled: false }, // TODO: confirm domain
-  { id: 14, from: 'godaddy.com', to: 'greengeeks.com', description: 'Web hosting powered by renewable energy', enabled: false },
-  { id: 15, from: 'analytics.google.com', to: 'withcabin.com', description: 'Privacy-first, carbon-aware website analytics', enabled: false },
+  { id: 11, from: 'mail.google.com', to: 'posteo.de', description: 'Private, renewable-powered email', enabled: false, effort: 'hard' },
+  { id: 12, from: 'workspace.google.com', to: 'infomaniak.com', description: 'Swiss email, storage and office tools on renewable energy', enabled: false, effort: 'hard' },
+  { id: 13, from: 'mailchimp.com', to: 'ecosend.io', description: 'Email marketing that offsets the emissions of every campaign', enabled: false, effort: 'hard' }, // TODO: confirm domain
+  { id: 14, from: 'godaddy.com', to: 'greengeeks.com', description: 'Web hosting powered by renewable energy', enabled: false, effort: 'hard' },
+  { id: 15, from: 'analytics.google.com', to: 'withcabin.com', description: 'Privacy-first, carbon-aware website analytics', enabled: false, effort: 'hard' },
 ]
+
+const normalizeEffort = (value: unknown): RedirectEffort => {
+  if (value === 'easy' || value === 'medium' || value === 'hard') return value
+  return 'easy'
+}
+
 
 export function normalizeRedirects(redirects: Redirect[] = []): Redirect[] {
   return redirects
@@ -40,6 +55,7 @@ export function normalizeRedirects(redirects: Redirect[] = []): Redirect[] {
       to: redirect.to.trim().replace(/^https?:\/\//i, '').replace(/\/$/, '').toLowerCase(),
       description: redirect.description?.trim() ?? '',
       enabled: Boolean(redirect.enabled),
+      effort: normalizeEffort(redirect.effort),
     }))
     .filter((redirect, index, items) => items.findIndex((item) => item.from === redirect.from) === index)
 }
@@ -60,6 +76,7 @@ export function mergeRedirects(currentDefaults: Redirect[], storedRedirects: Red
       to: defaultRedirect.to,
       description: storedRedirect?.description ?? defaultRedirect.description,
       enabled: storedRedirect ? Boolean(storedRedirect.enabled) : Boolean(defaultRedirect.enabled),
+      effort: normalizeEffort(storedRedirect?.effort ?? defaultRedirect.effort),
     }
   })
 }
@@ -115,10 +132,10 @@ export async function readStoredRedirects(): Promise<Redirect[]> {
     }
   }).catch(() => {
     // browser.storage.local.get is Promise-based in Firefox and extension polyfills.
-    return (storage as typeof storage & { get: (key: string) => Promise<Record<string, unknown>> }).get(REDIRECT_STORAGE_KEY).catch(() => ({}))
-  })
+    return (storage as typeof storage & { get: (key: string) => Promise<Record<string, unknown>> }).get(REDIRECT_STORAGE_KEY).catch(() => ({} as Record<string, unknown>))
+  }) as Record<string, unknown>
 
-  const redirects = value[REDIRECT_STORAGE_KEY]
+  const redirects = value[REDIRECT_STORAGE_KEY] as unknown
 
   if (Array.isArray(redirects) && redirects.length > 0) {
     const merged = mergeRedirects(defaultRedirects, redirects as Redirect[])

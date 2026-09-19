@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react'
 import './styles.css'
 import reactLogo from '../images/icon.png'
-import { defaultRedirects, readStoredRedirects, saveRedirects, type Redirect } from '../redirects'
+import { defaultRedirects, EFFORT_LABELS, readStoredRedirects, saveRedirects, type Redirect } from '../redirects'
 
 export default function SidebarApp() {
   const [redirects, setRedirects] = useState<Redirect[]>(defaultRedirects)
@@ -75,9 +75,12 @@ export default function SidebarApp() {
         {redirects.map(r => (
           <li key={r.id} className={`redirect_card ${r.enabled ? 'enabled' : 'disabled'}`}>
             <div className="site">
-              <div>
-                <span className="site_from">{r.from}</span>
-                <span className="site_to"> → {r.to}</span>
+              <div className="site_header">
+                <div>
+                  <span className="site_from">{r.from}</span>
+                  <span className="site_to"> → {r.to}</span>
+                </div>
+                <span className={`effort_badge effort_${r.effort}`}>{EFFORT_LABELS[r.effort]}</span>
               </div>
               <div className="site_desc">{r.description}</div>
             </div>
