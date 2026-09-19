@@ -86,14 +86,22 @@ export function matchesHostname(hostname: string, redirectSource: string) {
 
 export function resolveRedirectTarget(currentUrl: string, redirects: Redirect[] = defaultRedirects): string | null {
   const parsedCurrentUrl = new URL(currentUrl)
-  const enabledMatches = redirects
-    .filter((redirect) => redirect.enabled)
-    .filter((redirect) => matchesHostname(parsedCurrentUrl.hostname, redirect.from))
-    .sort((a, b) => b.from.length - a.from.length)
 
-  if (enabledMatches.length === 0) return null
+  // Find the longest matching enabled redirect without allocating intermediate
+  // arrays or performing a full sort — this reduces CPU and GC pressure on the
+  // page's main thread.
+  let selected: Redirect | null = null
+  for (let i = 0; i < redirects.length; i++) {
+    const redirect = redirects[i]
+    if (!redirect.enabled) continue
+    if (!matchesHostname(parsedCurrentUrl.hostname, redirect.from)) continue
 
-  const selected = enabledMatches[0]
+    if (selected === null || redirect.from.length > selected.from.length) {
+      selected = redirect
+    }
+  }
+
+  if (selected === null) return null
   const selectedTarget = /^https?:\/\//i.test(selected.to) ? new URL(selected.to) : new URL(`https://${selected.to}`)
   const targetUrl = new URL(parsedCurrentUrl.href)
 
