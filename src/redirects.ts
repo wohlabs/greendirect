@@ -10,10 +10,24 @@ export const REDIRECT_STORAGE_KEY = 'greendirect.redirects'
 
 export const defaultRedirects: Redirect[] = [
   { id: 1, from: 'google.com', to: 'ecosia.org', description: 'Search with a tree-planting search engine', enabled: true },
-  { id: 2, from: 'facebook.com', to: 'mastodon.social', description: 'Community-first social networking', enabled: false },
-  { id: 3, from: 'amazon.com', to: 'etsy.com', description: 'Support small makers and sustainable shops', enabled: false },
-  { id: 4, from: 'twitter.com', to: 'micro.blog', description: 'Lightweight, independent microblogging', enabled: false },
-  { id: 5, from: 'maps.google.com', to: 'openstreetmap.org', description: 'Open-source maps and community edits', enabled: true },
+  { id: 2, from: 'booking.com', to: 'bookdifferent.com', description: 'Book hotels with eco-certified stays ranked first and half of revenue donated to charity', enabled: true },
+  { id: 3, from: 'amazon.com', to: 'etsy.com', description: 'Support small makers and independent shops', enabled: false },
+  { id: 4, from: 'airbnb.com', to: 'ecobnb.com', description: 'Stay in eco-friendly accommodations, from organic farmhouses to green apartments', enabled: false },
+  { id: 5, from: 'doordash.com', to: 'toogoodtogo.com', description: 'Rescue surplus food from local shops instead of ordering new', enabled: false },
+
+  // Popular, drop-in swaps first
+  { id: 6, from: 'zara.com', to: 'vinted.com', description: 'Buy and sell secondhand fashion instead of fast fashion', enabled: true },
+  { id: 7, from: 'shein.com', to: 'thredup.com', description: 'Shop pre-loved clothing and keep it out of landfill', enabled: true },
+  { id: 8, from: 'bestbuy.com', to: 'backmarket.com', description: 'Refurbished phones, laptops and gadgets with less e-waste', enabled: true },
+  { id: 9, from: 'barnesandnoble.com', to: 'betterworldbooks.com', description: 'Used books that fund literacy and reduce waste', enabled: false },
+  { id: 10, from: 'bing.com', to: 'oceanhero.today', description: 'Search and help pull plastic out of the ocean', enabled: false },
+
+  // Accounts and services that take more effort to switch
+  { id: 11, from: 'mail.google.com', to: 'posteo.de', description: 'Private, renewable-powered email', enabled: false },
+  { id: 12, from: 'workspace.google.com', to: 'infomaniak.com', description: 'Swiss email, storage and office tools on renewable energy', enabled: false },
+  { id: 13, from: 'mailchimp.com', to: 'ecosend.io', description: 'Email marketing that offsets the emissions of every campaign', enabled: false }, // TODO: confirm domain
+  { id: 14, from: 'godaddy.com', to: 'greengeeks.com', description: 'Web hosting powered by renewable energy', enabled: false },
+  { id: 15, from: 'analytics.google.com', to: 'withcabin.com', description: 'Privacy-first, carbon-aware website analytics', enabled: false },
 ]
 
 export function normalizeRedirects(redirects: Redirect[] = []): Redirect[] {
