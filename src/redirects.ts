@@ -76,7 +76,7 @@ export function mergeRedirects(currentDefaults: Redirect[], storedRedirects: Red
       to: defaultRedirect.to,
       description: storedRedirect?.description ?? defaultRedirect.description,
       enabled: storedRedirect ? Boolean(storedRedirect.enabled) : Boolean(defaultRedirect.enabled),
-      effort: normalizeEffort(storedRedirect?.effort ?? defaultRedirect.effort),
+      effort: defaultRedirect.effort,
     }
   })
 }

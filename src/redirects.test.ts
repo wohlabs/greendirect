@@ -33,6 +33,20 @@ test('easy switches are enabled by default and higher effort swaps stay off', ()
   assert.ok(harder.every((redirect) => !redirect.enabled))
 })
 
+test('master effort data syncs to saved user settings without overriding user toggles', () => {
+  const currentDefaults: Redirect[] = [
+    { id: 1, from: 'google.com', to: 'ecosia.org', description: 'Search', enabled: true, effort: 'hard' },
+  ]
+  const storedRedirects: Redirect[] = [
+    { id: 1, from: 'google.com', to: 'ecosia.org', description: 'Search', enabled: false, effort: 'easy' },
+  ]
+
+  const merged = mergeRedirects(currentDefaults, storedRedirects)
+
+  assert.equal(merged[0].effort, 'hard')
+  assert.equal(merged[0].enabled, false)
+})
+
 test('removed default hosts are pruned from persisted data', () => {
   const currentDefaults = defaultRedirects.filter((redirect) => redirect.from !== 'amazon.com')
   const storedRedirects: Redirect[] = [
