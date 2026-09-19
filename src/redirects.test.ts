@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { defaultRedirects, resolveRedirectTarget, type Redirect } from './redirects.ts'
+import { defaultRedirects, mergeRedirects, resolveRedirectTarget, type Redirect } from './redirects.ts'
 
 test('redirects prefer the most specific enabled host match', () => {
   const redirects: Redirect[] = [
@@ -22,4 +22,17 @@ test('disabled redirects do not trigger a redirect', () => {
   ]
 
   assert.equal(resolveRedirectTarget('https://google.com/search?q=green', redirects), null)
+})
+
+test('removed default hosts are pruned from persisted data', () => {
+  const currentDefaults = defaultRedirects.filter((redirect) => redirect.from !== 'google.com')
+  const storedRedirects: Redirect[] = [
+    ...defaultRedirects,
+    { id: 99, from: 'amazon.com', to: 'etsy.com', description: 'Shop small', enabled: false },
+  ]
+
+  const merged = mergeRedirects(currentDefaults, storedRedirects)
+
+  assert.ok(!merged.some((redirect) => redirect.from === 'google.com'))
+  assert.ok(!merged.some((redirect) => redirect.from === 'amazon.com'))
 })

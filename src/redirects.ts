@@ -16,6 +16,40 @@ export const defaultRedirects: Redirect[] = [
   { id: 5, from: 'maps.google.com', to: 'openstreetmap.org', description: 'Open-source maps and community edits', enabled: true },
 ]
 
+export function normalizeRedirects(redirects: Redirect[] = []): Redirect[] {
+  return redirects
+    .filter((redirect) => redirect && typeof redirect.from === 'string' && redirect.from.trim().length > 0)
+    .map((redirect) => ({
+      ...redirect,
+      id: Number.isFinite(redirect.id) ? Number(redirect.id) : Date.now() + Math.random(),
+      from: redirect.from.trim().replace(/^https?:\/\//i, '').replace(/\/$/, '').toLowerCase(),
+      to: redirect.to.trim().replace(/^https?:\/\//i, '').replace(/\/$/, '').toLowerCase(),
+      description: redirect.description?.trim() ?? '',
+      enabled: Boolean(redirect.enabled),
+    }))
+    .filter((redirect, index, items) => items.findIndex((item) => item.from === redirect.from) === index)
+}
+
+export function mergeRedirects(currentDefaults: Redirect[], storedRedirects: Redirect[] = []): Redirect[] {
+  const normalizedDefaults = normalizeRedirects(currentDefaults)
+  const normalizedStored = normalizeRedirects(storedRedirects)
+  const storedBySource = new Map(normalizedStored.map((redirect) => [redirect.from, redirect]))
+
+  return normalizedDefaults.map((defaultRedirect) => {
+    const storedRedirect = storedBySource.get(defaultRedirect.from)
+
+    return {
+      ...defaultRedirect,
+      ...storedRedirect,
+      id: defaultRedirect.id,
+      from: defaultRedirect.from,
+      to: defaultRedirect.to,
+      description: storedRedirect?.description ?? defaultRedirect.description,
+      enabled: storedRedirect ? Boolean(storedRedirect.enabled) : Boolean(defaultRedirect.enabled),
+    }
+  })
+}
+
 export function matchesHostname(hostname: string, redirectSource: string) {
   const lowerHost = hostname.toLowerCase()
   const normalizedSource = redirectSource.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
@@ -72,9 +106,15 @@ export async function readStoredRedirects(): Promise<Redirect[]> {
 
   const redirects = value[REDIRECT_STORAGE_KEY]
 
-  if (Array.isArray(redirects) && redirects.length > 0) return redirects as Redirect[]
+  if (Array.isArray(redirects) && redirects.length > 0) {
+    const merged = mergeRedirects(defaultRedirects, redirects as Redirect[])
+    await saveRedirects(merged)
+    return merged
+  }
 
-  return defaultRedirects
+  const merged = mergeRedirects(defaultRedirects, defaultRedirects)
+  await saveRedirects(merged)
+  return merged
 }
 
 export async function saveRedirects(redirects: Redirect[]) {
@@ -82,7 +122,7 @@ export async function saveRedirects(redirects: Redirect[]) {
 
   if (!storage) return
 
-  const payload = {[REDIRECT_STORAGE_KEY]: redirects}
+  const payload = {[REDIRECT_STORAGE_KEY]: mergeRedirects(defaultRedirects, redirects)}
 
   try {
     await new Promise<void>((resolve, reject) => {

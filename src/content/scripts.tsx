@@ -14,6 +14,20 @@ async function handleRedirect() {
   window.location.assign(target)
 }
 
+function listenForRedirectUpdates() {
+  const onStorageChange = () => {
+    void handleRedirect()
+  }
+
+  if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+    chrome.storage.onChanged.addListener(onStorageChange)
+  }
+
+  if (typeof browser !== 'undefined' && browser.storage?.onChanged) {
+    browser.storage.onChanged.addListener(onStorageChange)
+  }
+}
+
 /**
  * Extension.js content_script entrypoint. The framework calls this on
  * injection and calls the returned function on HMR/teardown to clean up.
@@ -21,6 +35,7 @@ async function handleRedirect() {
  */
 export default function initial() {
   void handleRedirect()
+  listenForRedirectUpdates()
 
   const mountWidget = () => {
     const rootDiv = document.createElement('div')

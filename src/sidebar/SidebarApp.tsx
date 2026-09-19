@@ -7,7 +7,33 @@ export default function SidebarApp() {
   const [redirects, setRedirects] = useState<Redirect[]>(defaultRedirects)
 
   useEffect(() => {
-    readStoredRedirects().then(setRedirects).catch(() => setRedirects(defaultRedirects))
+    const syncRedirects = () => {
+      readStoredRedirects().then(setRedirects).catch(() => setRedirects(defaultRedirects))
+    }
+
+    syncRedirects()
+
+    const onStorageChange = () => {
+      syncRedirects()
+    }
+
+    if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+      chrome.storage.onChanged.addListener(onStorageChange)
+    }
+
+    if (typeof browser !== 'undefined' && browser.storage?.onChanged) {
+      browser.storage.onChanged.addListener(onStorageChange)
+    }
+
+    return () => {
+      if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+        chrome.storage.onChanged.removeListener(onStorageChange)
+      }
+
+      if (typeof browser !== 'undefined' && browser.storage?.onChanged) {
+        browser.storage.onChanged.removeListener(onStorageChange)
+      }
+    }
   }, [])
 
   async function persist(nextRedirects: Redirect[]) {
