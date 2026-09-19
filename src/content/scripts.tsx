@@ -1,8 +1,18 @@
 import ReactDOM from 'react-dom/client'
 import ContentApp from './ContentApp'
 import './styles.css'
+import { readStoredRedirects, resolveRedirectTarget } from '../redirects'
 
 console.log('[From the page context] Hello from content_scripts!')
+
+async function handleRedirect() {
+  const redirects = await readStoredRedirects()
+  const target = resolveRedirectTarget(window.location.href, redirects)
+
+  if (!target) return
+
+  window.location.assign(target)
+}
 
 /**
  * Extension.js content_script entrypoint. The framework calls this on
@@ -10,35 +20,51 @@ console.log('[From the page context] Hello from content_scripts!')
  * Do not invoke it yourself.
  */
 export default function initial() {
-  const rootDiv = document.createElement('div')
-  rootDiv.setAttribute('data-extension-root', 'true')
-  // Isolate the host from page styles (e.g. example.com ships div{opacity:.8},
-  // which would otherwise fade the whole widget): the shadow DOM only protects
-  // descendants; the host element itself still takes page CSS.
-  rootDiv.style.cssText = 'all: initial !important'
-  document.body.appendChild(rootDiv)
+  void handleRedirect()
 
-  // Injecting content_scripts inside a shadow dom
-  // prevents conflicts with the host page's styles.
-  // This way, styles from the extension won't leak into the host page.
-  const shadowRoot = rootDiv.attachShadow({mode: 'open'})
+  const mountWidget = () => {
+    const rootDiv = document.createElement('div')
+    rootDiv.setAttribute('data-extension-root', 'true')
+    // Isolate the host from page styles (e.g. example.com ships div{opacity:.8},
+    // which would otherwise fade the whole widget): the shadow DOM only protects
+    // descendants; the host element itself still takes page CSS.
+    rootDiv.style.cssText = 'all: initial !important'
+    document.body.appendChild(rootDiv)
 
-  const styleElement = document.createElement('style')
-  shadowRoot.appendChild(styleElement)
+    // Injecting content_scripts inside a shadow dom
+    // prevents conflicts with the host page's styles.
+    // This way, styles from the extension won't leak into the host page.
+    const shadowRoot = rootDiv.attachShadow({mode: 'open'})
 
-  fetchCSS().then((response) => (styleElement.textContent = response))
+    const styleElement = document.createElement('style')
+    shadowRoot.appendChild(styleElement)
 
-  // Create a container for React to render into
-  const mountingPoint = ReactDOM.createRoot(shadowRoot)
-  mountingPoint.render(
-    <div className="content_script">
-      <ContentApp />
-    </div>
-  )
+    fetchCSS().then((response) => (styleElement.textContent = response))
+
+    // Create a container for React to render into
+    const mountingPoint = ReactDOM.createRoot(shadowRoot)
+    mountingPoint.render(
+      <div className="content_script">
+        <ContentApp />
+      </div>
+    )
+
+    return () => {
+      mountingPoint.unmount()
+      rootDiv.remove()
+    }
+  }
+
+  const rootNode = document.body || document.documentElement
+  if (!rootNode) {
+    document.addEventListener('DOMContentLoaded', mountWidget, {once: true})
+    return () => {}
+  }
+
+  const cleanup = mountWidget()
 
   return () => {
-    mountingPoint.unmount()
-    rootDiv.remove()
+    cleanup()
   }
 }
 

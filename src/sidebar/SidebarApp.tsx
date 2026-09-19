@@ -1,37 +1,33 @@
-import React, {useState} from 'react'
+import React, {useEffect, useState} from 'react'
 import './styles.css'
 import reactLogo from '../images/icon.png'
-
-type Redirect = {
-  id: number
-  from: string
-  to: string
-  description?: string
-  enabled: boolean
-}
-
-const defaultRedirects: Redirect[] = [
-  { id: 1, from: 'google.com', to: 'ecosia.org', description: 'Search with a tree-planting search engine', enabled: true },
-  { id: 2, from: 'youtube.com', to: 'peertube.social', description: 'Decentralised video hosting', enabled: true },
-  { id: 3, from: 'facebook.com', to: 'mastodon.social', description: 'Community-first social networking', enabled: false },
-  { id: 4, from: 'amazon.com', to: 'etsy.com', description: 'Support small makers and sustainable shops', enabled: false },
-  { id: 5, from: 'twitter.com', to: 'micro.blog', description: 'Lightweight, independent microblogging', enabled: false },
-  { id: 6, from: 'maps.google.com', to: 'openstreetmap.org', description: 'Open-source maps and community edits', enabled: true },
-]
+import { defaultRedirects, readStoredRedirects, saveRedirects, type Redirect } from '../redirects'
 
 export default function SidebarApp() {
   const [redirects, setRedirects] = useState<Redirect[]>(defaultRedirects)
 
+  useEffect(() => {
+    readStoredRedirects().then(setRedirects).catch(() => setRedirects(defaultRedirects))
+  }, [])
+
+  async function persist(nextRedirects: Redirect[]) {
+    setRedirects(nextRedirects)
+    await saveRedirects(nextRedirects)
+  }
+
   function toggle(id: number) {
-    setRedirects(r => r.map(item => item.id === id ? {...item, enabled: !item.enabled} : item))
+    const nextRedirects = redirects.map(item => item.id === id ? {...item, enabled: !item.enabled} : item)
+    void persist(nextRedirects)
   }
 
   function enableAll() {
-    setRedirects(r => r.map(item => ({...item, enabled: true})))
+    const nextRedirects = redirects.map(item => ({...item, enabled: true}))
+    void persist(nextRedirects)
   }
 
   function disableAll() {
-    setRedirects(r => r.map(item => ({...item, enabled: false})))
+    const nextRedirects = redirects.map(item => ({...item, enabled: false}))
+    void persist(nextRedirects)
   }
 
   return (
