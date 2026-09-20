@@ -84,41 +84,36 @@ export default function SidebarApp() {
           return (
             <li key={r.id} className={`redirect_card ${r.enabled ? 'enabled' : 'disabled'}`}>
               <div className="card_main">
-                <div
-                  className={[
-                    'flower_scene',
-                    `flower_scene--${r.effort}`,
-                    r.enabled ? 'enabled' : 'disabled',
-                  ].filter(Boolean).join(' ')}
-                  aria-hidden="true"
-                >
-                  {Array.from({length: flowerConfig.count}, (_, index) => (
-                    <div key={`${r.id}-${index}`} className={`flower ${r.enabled ? 'bloomed' : 'withered'}`}>
-                      <span className="stem" />
-                      <span className="leaf leaf_left" />
-                      <span className="leaf leaf_right" />
-                      <span className="flower_head">
-                        <span className="petal petal_1" />
-                        <span className="petal petal_2" />
-                        <span className="petal petal_3" />
-                        <span className="petal petal_4" />
-                        <span className="petal petal_5" />
-                        <span className="petal petal_6" />
-                        <span className="center" />
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
                 <div className="site">
                   <div className="site_header">
                     <div>
                       <span className="site_from">{r.from}</span>
                       <span className="site_to"> → {r.to}</span>
                     </div>
-                    <span className={`effort_badge effort_${r.effort}`}>{EFFORT_LABELS[r.effort]}</span>
                   </div>
                   <div className="site_desc">{r.description}</div>
+                </div>
+
+                <div className="site_meta">
+                  <div className={`flower_scene flower_scene--${r.effort} ${r.enabled ? 'enabled' : 'disabled'}`} aria-hidden="true">
+                    {Array.from({length: flowerConfig.count}, (_, index) => (
+                      <div key={`${r.id}-${index}`} className={`flower ${r.enabled ? 'bloomed' : 'withered'}`}>
+                        <span className="stem" />
+                        <span className="leaf leaf_left" />
+                        <span className="leaf leaf_right" />
+                        <span className="flower_head">
+                          <span className="petal petal_1" />
+                          <span className="petal petal_2" />
+                          <span className="petal petal_3" />
+                          <span className="petal petal_4" />
+                          <span className="petal petal_5" />
+                          <span className="petal petal_6" />
+                          <span className="center" />
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <span className={`effort_badge effort_${r.effort}`}>{EFFORT_LABELS[r.effort]}</span>
                 </div>
               </div>
 

@@ -50,23 +50,24 @@ body {
 .redirect_card { display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--card); border-radius:10px; box-shadow:0 6px 18px rgba(21,48,28,0.06); gap:12px; }
 .redirect_card.disabled { opacity:0.75; }
 
-.card_main { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
+.card_main { display:flex; align-items:flex-start; gap:12px; flex:1; min-width:0; }
 
 .flower_scene {
   display:flex;
   align-items:flex-end;
   justify-content:center;
-  gap:4px;
-  min-width: 74px;
-  width: 74px;
-  height: 72px;
-  padding: 4px 0;
+  gap:2px;
+  min-width: 52px;
+  width: 52px;
+  height: 40px;
+  padding: 0;
   flex-shrink: 0;
   transform: translateX(-2px);
+  margin-top: 0;
 }
-.flower_scene--easy { --flower-size: 18px; }
-.flower_scene--medium { --flower-size: 18px; }
-.flower_scene--hard { --flower-size: 18px; }
+.flower_scene--easy { --flower-size: 12px; }
+.flower_scene--medium { --flower-size: 13px; }
+.flower_scene--hard { --flower-size: 14px; }
 
 /* ==========================================================================
    Flower
@@ -253,8 +254,17 @@ body {
   transform: translate(-50%, -50%) scale(1);
 }
 
-.site { display:flex; flex:1; min-width:0; flex-direction:column; gap:3px; }
-.site_header { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.site { display:flex; flex:1; min-width:0; flex-direction:column; gap:3px; align-self:flex-start; }
+.site_header { display:flex; justify-content:flex-start; align-items:flex-start; gap:8px; }
+.site_meta {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:2px;
+  flex-shrink:0;
+  margin-left: 0;
+  justify-content:flex-start;
+}
 .site_from { font-weight:700; }
 .site_to { color: var(--green-500); font-weight:600; }
 .site_desc { color: var(--muted); font-size:12px; }
@@ -267,6 +277,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+  line-height: 1.2;
 }
 .effort_easy { background: rgba(47, 143, 78, 0.12); color: #1d6939; }
 .effort_medium { background: rgba(149, 117, 28, 0.12); color: #7a5a12; }
