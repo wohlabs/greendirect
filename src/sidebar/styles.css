@@ -340,39 +340,39 @@ body {
 }
 
 .redirect_toggle.enabled.preview_disabled .flower {
-  --stem-h: calc(var(--flower-size) * 1.2);
+  --stem-h: calc(var(--flower-size) * 1.08);
   --stem-tip: #a7b185;
-  --bend-w: calc(var(--flower-size) * 0.28);
-  --bend-h: calc(var(--flower-size) * 0.18);
-  --bend-line: var(--stem-w);
-  --leaf-y: calc(var(--flower-size) * 0.95);
-  --leaf-turn: -12deg;
-  --leaf-scale: 0.85;
-  --head-lift: calc(var(--flower-size) * 0.08);
-  --head-turn: 135deg;
+  --bend-w: calc(var(--flower-size) * 0.22);
+  --bend-h: calc(var(--flower-size) * 0.14);
+  --bend-line: calc(var(--stem-w) * 0.8);
+  --leaf-y: calc(var(--flower-size) * 0.92);
+  --leaf-turn: -10deg;
+  --leaf-scale: 0.9;
+  --head-lift: calc(var(--flower-size) * 0.06);
+  --head-turn: 110deg;
   --head-scale: 0.82;
-  filter: saturate(0.7) brightness(0.95);
+  filter: saturate(0.8) brightness(0.96);
 }
 .redirect_toggle.enabled.preview_disabled .effort_text {
-  background: rgba(149, 117, 28, 0.12);
+  background: rgba(149, 117, 28, 0.08);
   color: #7a5a12;
-  transform: translateY(-1px);
+  transform: translateY(-1px) scale(0.98);
 }
 
 .redirect_toggle.disabled.preview_enabled .flower {
-  --stem-h: calc(var(--flower-size) * 1.5);
-  --leaf-y: calc(var(--flower-size) * 1.16);
-  --leaf-turn: 0deg;
-  --leaf-scale: 0.95;
-  --head-lift: calc(var(--flower-size) * 0.25);
-  --head-turn: 0deg;
-  --head-scale: 1.04;
-  filter: saturate(1.15) brightness(1.05);
+  --stem-h: calc(var(--flower-size) * 1.35);
+  --leaf-y: calc(var(--flower-size) * 1.08);
+  --leaf-turn: -4deg;
+  --leaf-scale: 0.96;
+  --head-lift: calc(var(--flower-size) * 0.18);
+  --head-turn: 18deg;
+  --head-scale: 0.96;
+  filter: saturate(1.08) brightness(1.02);
 }
 .redirect_toggle.disabled.preview_enabled .effort_text {
-  background: rgba(47, 143, 78, 0.12);
+  background: rgba(47, 143, 78, 0.08);
   color: #1d6939;
-  transform: translateY(-1px);
+  transform: translateY(-1px) scale(0.98);
 }
 
 .effort_easy { --toggle-color: rgba(47, 143, 78, 0.12); }
