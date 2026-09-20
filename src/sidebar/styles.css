@@ -77,6 +77,71 @@ body {
 .switch input:checked + .slider { background: linear-gradient(90deg, var(--green-500), var(--green-300)); }
 .switch input:checked + .slider:before { transform: translateX(20px); }
 
+/* Flower knob
+   Add the "flower" class to the .switch label (<label class="switch flower">).
+   Off = closed green bud. On = the bud spins across the track and blooms open.
+   Keep this block below the toggle switch rules above so it overrides them. */
+@property --flower-bloom { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --flower-petal { syntax: '<color>'; inherits: false; initial-value: #7fb894; }
+@property --flower-petal-hi { syntax: '<color>'; inherits: false; initial-value: #b9e0c6; }
+
+.flower .slider:before {
+  /* 0 = closed bud, 1 = fully open. Everything else is derived from it. */
+  --flower-bloom: 0;
+  --flower-petal: #7fb894;
+  --flower-petal-hi: #b9e0c6;
+
+  --flower-r: calc(1.5px + var(--flower-bloom) * 5px);  /* distance of petals from centre */
+  --flower-s: calc(8px + var(--flower-bloom) * 2px);    /* petal diameter */
+  --flower-c: max(0px, calc(var(--flower-bloom) * 7px)); /* centre diameter */
+  --flower-o: calc(15px - var(--flower-s) / 2);         /* puts a petal at the box centre */
+  --flower-img: radial-gradient(circle closest-side, var(--flower-petal-hi) 0, var(--flower-petal) 90%, transparent 100%);
+
+  content: "";
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  left: -2px;
+  top: -3px;
+  border-radius: 0;
+  box-shadow: none;
+  /* first layer is the golden centre, the other five are the petals (72° apart) */
+  background:
+    radial-gradient(circle closest-side, #fff4b0 0, #f2b632 75%, transparent 100%) 50% 50% / var(--flower-c) var(--flower-c) no-repeat,
+    var(--flower-img) var(--flower-o) calc(var(--flower-o) - var(--flower-r)) / var(--flower-s) var(--flower-s) no-repeat,
+    var(--flower-img) calc(var(--flower-o) + var(--flower-r) * 0.951) calc(var(--flower-o) - var(--flower-r) * 0.309) / var(--flower-s) var(--flower-s) no-repeat,
+    var(--flower-img) calc(var(--flower-o) + var(--flower-r) * 0.588) calc(var(--flower-o) + var(--flower-r) * 0.809) / var(--flower-s) var(--flower-s) no-repeat,
+    var(--flower-img) calc(var(--flower-o) - var(--flower-r) * 0.588) calc(var(--flower-o) + var(--flower-r) * 0.809) / var(--flower-s) var(--flower-s) no-repeat,
+    var(--flower-img) calc(var(--flower-o) - var(--flower-r) * 0.951) calc(var(--flower-o) - var(--flower-r) * 0.309) / var(--flower-s) var(--flower-s) no-repeat;
+  /* zero-offset glow so it looks right at any rotation */
+  filter: drop-shadow(0 0 2.5px rgba(15, 35, 15, 0.35));
+  transform: translateX(0) rotate(0deg);
+  /* closing: quick and calm */
+  transition:
+    --flower-bloom 0.35s ease-in,
+    --flower-petal 0.35s ease,
+    --flower-petal-hi 0.35s ease,
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.flower input:checked + .slider:before {
+  --flower-bloom: 1;
+  --flower-petal: #ff9db9;
+  --flower-petal-hi: #ffe6ee;
+  transform: translateX(18px) rotate(144deg);
+  /* opening: springy overshoot so the petals pop out and settle */
+  transition:
+    --flower-bloom 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s,
+    --flower-petal 0.4s ease 0.05s,
+    --flower-petal-hi 0.4s ease 0.05s,
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flower .slider:before,
+  .flower input:checked + .slider:before { transition-duration: 0.01s; transition-delay: 0s; }
+}
+
 .sidebar_footer { margin-top:10px; text-align:center; color:var(--muted); font-size:12px; }
 
 @media (max-width:420px) { .sidebar_app { padding:10px; } }
