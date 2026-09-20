@@ -11,6 +11,8 @@ const FLOWER_CONFIG: Record<Redirect['effort'], { count: number; size: number }>
 
 export default function SidebarApp() {
   const [redirects, setRedirects] = useState<Redirect[]>(defaultRedirects)
+  const [hoveredToggleIds, setHoveredToggleIds] = useState<number[]>([])
+  const [lockedHoverIds, setLockedHoverIds] = useState<number[]>([])
 
   useEffect(() => {
     const syncRedirects = () => {
@@ -62,6 +64,14 @@ export default function SidebarApp() {
     void persist(nextRedirects)
   }
 
+  function setHoverPreview(id: number, isHovering: boolean) {
+    setHoveredToggleIds(current => isHovering ? [...new Set([...current, id])] : current.filter(item => item !== id))
+  }
+
+  function setHoverLock(id: number, isLocked: boolean) {
+    setLockedHoverIds(current => isLocked ? [...new Set([...current, id])] : current.filter(item => item !== id))
+  }
+
   return (
     <div className="sidebar_app">
       <header className="sidebar_header">
@@ -80,6 +90,8 @@ export default function SidebarApp() {
       <ul className="redirect_list">
         {redirects.map(r => {
           const flowerConfig = FLOWER_CONFIG[r.effort]
+          const isPreviewingOpposite = hoveredToggleIds.includes(r.id) && !lockedHoverIds.includes(r.id)
+          const previewClass = isPreviewingOpposite ? (r.enabled ? 'preview_disabled' : 'preview_enabled') : ''
 
           return (
             <li key={r.id} className={`redirect_card ${r.enabled ? 'enabled' : 'disabled'}`}>
@@ -94,7 +106,21 @@ export default function SidebarApp() {
                   <div className="site_desc">{r.description}</div>
                 </div>
 
-                <div className="site_meta">
+                <button
+                  type="button"
+                  className={`redirect_toggle effort_${r.effort} ${r.enabled ? 'enabled' : 'disabled'} ${previewClass}`}
+                  aria-pressed={r.enabled}
+                  aria-label={`${r.enabled ? 'Disable' : 'Enable'} redirect from ${r.from} to ${r.to}`}
+                  onMouseEnter={() => setHoverPreview(r.id, true)}
+                  onMouseLeave={() => {
+                    setHoverPreview(r.id, false)
+                    setHoverLock(r.id, false)
+                  }}
+                  onClick={() => {
+                    toggle(r.id)
+                    setHoverLock(r.id, true)
+                  }}
+                >
                   <div className={`flower_scene flower_scene--${r.effort} ${r.enabled ? 'enabled' : 'disabled'}`} aria-hidden="true">
                     {Array.from({length: flowerConfig.count}, (_, index) => (
                       <div key={`${r.id}-${index}`} className={`flower ${r.enabled ? 'bloomed' : 'withered'}`}>
@@ -113,14 +139,9 @@ export default function SidebarApp() {
                       </div>
                     ))}
                   </div>
-                  <span className={`effort_badge effort_${r.effort}`}>{EFFORT_LABELS[r.effort]}</span>
-                </div>
+                  <span className="effort_text">{EFFORT_LABELS[r.effort]}</span>
+                </button>
               </div>
-
-              <label className="switch">
-                <input type="checkbox" checked={r.enabled} onChange={() => toggle(r.id)} />
-                <span className="slider" />
-              </label>
             </li>
           )
         })}
