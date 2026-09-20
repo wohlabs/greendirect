@@ -85,7 +85,7 @@ export default function SidebarApp() {
               <div className="site_desc">{r.description}</div>
             </div>
 
-            <label className="switch">
+            <label className="switch flower">
               <input type="checkbox" checked={r.enabled} onChange={() => toggle(r.id)} />
               <span className="slider" />
             </label>
