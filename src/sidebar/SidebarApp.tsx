@@ -3,6 +3,12 @@ import './styles.css'
 import reactLogo from '../images/icon.png'
 import { defaultRedirects, EFFORT_LABELS, readStoredRedirects, saveRedirects, type Redirect } from '../redirects'
 
+const FLOWER_CONFIG: Record<Redirect['effort'], { count: number; size: number }> = {
+  easy: { count: 1, size: 18 },
+  medium: { count: 2, size: 22 },
+  hard: { count: 3, size: 28 },
+}
+
 export default function SidebarApp() {
   const [redirects, setRedirects] = useState<Redirect[]>(defaultRedirects)
 
@@ -72,25 +78,57 @@ export default function SidebarApp() {
       </section>
 
       <ul className="redirect_list">
-        {redirects.map(r => (
-          <li key={r.id} className={`redirect_card ${r.enabled ? 'enabled' : 'disabled'}`}>
-            <div className="site">
-              <div className="site_header">
-                <div>
-                  <span className="site_from">{r.from}</span>
-                  <span className="site_to"> → {r.to}</span>
-                </div>
-                <span className={`effort_badge effort_${r.effort}`}>{EFFORT_LABELS[r.effort]}</span>
-              </div>
-              <div className="site_desc">{r.description}</div>
-            </div>
+        {redirects.map(r => {
+          const flowerConfig = FLOWER_CONFIG[r.effort]
 
-            <label className="switch">
-              <input type="checkbox" checked={r.enabled} onChange={() => toggle(r.id)} />
-              <span className="slider" />
-            </label>
-          </li>
-        ))}
+          return (
+            <li key={r.id} className={`redirect_card ${r.enabled ? 'enabled' : 'disabled'}`}>
+              <div className="card_main">
+                <div
+                  className={[
+                    'flower_scene',
+                    `flower_scene--${r.effort}`,
+                    r.enabled ? 'enabled' : 'disabled',
+                  ].filter(Boolean).join(' ')}
+                  aria-hidden="true"
+                >
+                  {Array.from({length: flowerConfig.count}, (_, index) => (
+                    <div key={`${r.id}-${index}`} className={`flower ${r.enabled ? 'bloomed' : 'withered'}`}>
+                      <span className="stem" />
+                      <span className="leaf leaf_left" />
+                      <span className="leaf leaf_right" />
+                      <span className="flower_head">
+                        <span className="petal petal_1" />
+                        <span className="petal petal_2" />
+                        <span className="petal petal_3" />
+                        <span className="petal petal_4" />
+                        <span className="petal petal_5" />
+                        <span className="petal petal_6" />
+                        <span className="center" />
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="site">
+                  <div className="site_header">
+                    <div>
+                      <span className="site_from">{r.from}</span>
+                      <span className="site_to"> → {r.to}</span>
+                    </div>
+                    <span className={`effort_badge effort_${r.effort}`}>{EFFORT_LABELS[r.effort]}</span>
+                  </div>
+                  <div className="site_desc">{r.description}</div>
+                </div>
+              </div>
+
+              <label className="switch">
+                <input type="checkbox" checked={r.enabled} onChange={() => toggle(r.id)} />
+                <span className="slider" />
+              </label>
+            </li>
+          )
+        })}
       </ul>
 
       <footer className="sidebar_footer">Made with care for a greener web 🌿</footer>

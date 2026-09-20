@@ -50,6 +50,209 @@ body {
 .redirect_card { display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--card); border-radius:10px; box-shadow:0 6px 18px rgba(21,48,28,0.06); gap:12px; }
 .redirect_card.disabled { opacity:0.75; }
 
+.card_main { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
+
+.flower_scene {
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  gap:4px;
+  min-width: 74px;
+  width: 74px;
+  height: 72px;
+  padding: 4px 0;
+  flex-shrink: 0;
+  transform: translateX(-2px);
+}
+.flower_scene--easy { --flower-size: 18px; }
+.flower_scene--medium { --flower-size: 18px; }
+.flower_scene--hard { --flower-size: 18px; }
+
+/* ==========================================================================
+   Flower
+   Everything is positioned from the variables on .flower, so the stem, leaves
+   and head always move together and stay attached in every state
+   (default bud, .bloomed, .withered).
+   ========================================================================== */
+.flower {
+  /* stem */
+  --stem-w: 3px;
+  --stem-h: calc(var(--flower-size) * 1.35);   /* height of the upright part of the stem */
+  --stem-tip: #7ecb84;                          /* stem colour where it bends over */
+  --bend-w: 0px;                                /* how far the stem curves sideways */
+  --bend-h: 0px;                                /* how high the curve arches above the upright stem */
+  --bend-line: 0px;                             /* thickness of the curved part (0 = hidden) */
+
+  /* leaves: pivot on the stem, so they stay attached however they turn */
+  --leaf-y: calc(var(--flower-size) * 1.3);     /* height on the stem where the leaves join */
+  --leaf-turn: -32deg;
+  --leaf-scale: 1;
+
+  /* head: sits on the tip of the stem */
+  --head-lift: calc(var(--flower-size) * 0.51); /* head centre above the stem tip (negative = below) */
+  --head-turn: 0deg;
+  --head-scale: 1;
+
+  position: relative;
+  width: calc(var(--flower-size) * 1.4);
+  height: calc(var(--flower-size) * 2.5);
+  transition: transform 500ms ease, filter 500ms ease;
+}
+.flower:nth-child(2n) { transform: translateY(2px); }
+.flower:nth-child(3n) { transform: translateY(4px); }
+
+/* Stem: upright part + a curved part that arches over when withered */
+.flower .stem {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: var(--stem-w);
+  height: var(--stem-h);
+  background: linear-gradient(180deg, #7ecb84 0%, #3b8d54 100%);
+  border-radius: 999px;
+  transform: translateX(-50%);
+  transition: height 500ms ease, transform 500ms ease, filter 500ms ease, opacity 500ms ease;
+}
+
+/* The curve: a half-ellipse arch. Its right leg continues the stem straight up,
+   its left leg ends at the point where the head hangs. */
+.flower .stem::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: calc(100% - 1px);                     /* 1px overlap so there is never a seam */
+  box-sizing: border-box;
+  width: calc(var(--bend-w) + var(--stem-w));
+  height: calc(var(--bend-h) + 1px);
+  border: solid var(--stem-tip);
+  border-width: var(--bend-line) var(--bend-line) 0;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  pointer-events: none;
+  transition: width 500ms ease, height 500ms ease, border-width 500ms ease, border-color 500ms ease;
+}
+
+/* Leaves: the sharp corner of each leaf is the pivot and sits on the stem */
+.flower .leaf {
+  position: absolute;
+  right: 50%;
+  bottom: calc(var(--leaf-y) - var(--flower-size) * 0.5);
+  width: calc(var(--flower-size) * 0.7);
+  height: calc(var(--flower-size) * 0.5);
+  background: linear-gradient(135deg, #89d396 0%, #4da36a 100%);
+  border-radius: 70% 0 60% 20%;
+  opacity: 0.9;
+  transform-origin: 100% 0;
+  transform: rotate(var(--leaf-turn)) scale(var(--leaf-scale));
+  transition: bottom 500ms ease, transform 500ms ease, opacity 500ms ease, filter 500ms ease;
+}
+/* mirrored about the stem */
+.flower .leaf_right {
+  transform: scaleX(-1) rotate(var(--leaf-turn)) scale(var(--leaf-scale));
+}
+
+/* Head: centred on the tip of the stem (follows the curve when withered) */
+.flower .flower_head {
+  position: absolute;
+  left: calc(50% - var(--bend-w));
+  bottom: calc(var(--stem-h) + var(--head-lift) - var(--flower-size) * 0.5);
+  width: var(--flower-size);
+  height: var(--flower-size);
+  transform: translateX(-50%) rotate(var(--head-turn)) scale(var(--head-scale));
+  transition: left 500ms ease, bottom 500ms ease, transform 500ms ease, filter 500ms ease, opacity 500ms ease;
+}
+
+.flower .petal {
+  position:absolute;
+  left:50%;
+  top:50%;
+  width: calc(var(--flower-size) * 0.52);
+  height: calc(var(--flower-size) * 0.9);
+  margin-left: calc(var(--flower-size) * -0.26);
+  margin-top: calc(var(--flower-size) * -0.45);
+  border-radius: 70% 70% 60% 60%;
+  background: linear-gradient(180deg, #ffd7ef 0%, #ff9ec9 100%);
+  box-shadow: inset 0 -4px 8px rgba(255, 255, 255, 0.4), 0 0 0 1px rgba(255, 142, 182, 0.2);
+  opacity: 0.2;
+  transition: transform 500ms ease, opacity 500ms ease, filter 500ms ease;
+}
+.flower .petal_1 { --angle: 0deg; transform: rotate(var(--angle)) translateY(-3px) scale(0.35); }
+.flower .petal_2 { --angle: 60deg; transform: rotate(var(--angle)) translateY(-3px) scale(0.35); }
+.flower .petal_3 { --angle: 120deg; transform: rotate(var(--angle)) translateY(-3px) scale(0.35); }
+.flower .petal_4 { --angle: 180deg; transform: rotate(var(--angle)) translateY(-3px) scale(0.35); }
+.flower .petal_5 { --angle: 240deg; transform: rotate(var(--angle)) translateY(-3px) scale(0.35); }
+.flower .petal_6 { --angle: 300deg; transform: rotate(var(--angle)) translateY(-3px) scale(0.35); }
+
+.flower .center {
+  position:absolute;
+  left:50%;
+  top:50%;
+  width: calc(var(--flower-size) * 0.32);
+  height: calc(var(--flower-size) * 0.32);
+  background: radial-gradient(circle, #ffeeb3 0%, #f8d25f 55%, #cc9d2d 100%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 10px rgba(255, 202, 88, 0.6);
+  opacity: 0.2;
+  transition: opacity 500ms ease, transform 500ms ease, filter 500ms ease;
+}
+
+/* ---- Withered: shorter stem that curves over, head hangs from its tip ---- */
+.flower.withered {
+  --stem-h: calc(var(--flower-size) * 0.95);
+  --stem-tip: #a7b185;
+  --bend-w: calc(var(--flower-size) * 0.5);
+  --bend-h: calc(var(--flower-size) * 0.45);
+  --bend-line: var(--stem-w);
+  --leaf-y: calc(var(--flower-size) * 0.8);
+  --leaf-turn: -18deg;
+  --leaf-scale: 0.72;
+  --head-lift: calc(var(--flower-size) * -0.05);
+  --head-turn: 180deg;
+  --head-scale: 0.7;
+  filter: saturate(0.45) brightness(0.82);
+}
+.flower.withered .stem {
+  background: linear-gradient(180deg, #a7b185 0%, #7a8450 100%);
+  opacity: 0.9;
+}
+.flower.withered .leaf {
+  opacity: 0.35;
+  filter: grayscale(0.7);
+}
+.flower.withered .petal {
+  opacity: 0.18;
+  filter: grayscale(0.9) brightness(0.9);
+  transform: rotate(var(--angle)) translateY(-2px) scale(0.32);
+}
+.flower.withered .center {
+  opacity: 0.1;
+  transform: translate(-50%, -50%) scale(0.7);
+}
+
+/* ---- Bloomed ---- */
+.flower.bloomed {
+  --stem-h: calc(var(--flower-size) * 1.55);
+  --leaf-y: calc(var(--flower-size) * 1.2);
+  --leaf-turn: 0deg;
+  --head-lift: calc(var(--flower-size) * 0.31);
+  --head-scale: 1.08;
+  filter: saturate(1.15) brightness(1.05);
+}
+.flower.bloomed .stem {
+  background: linear-gradient(180deg, #94dc8e 0%, #3d9d5b 100%);
+}
+.flower.bloomed .leaf {
+  opacity: 1;
+}
+.flower.bloomed .petal {
+  opacity: 1;
+  transform: rotate(var(--angle)) translateY(-10px) scale(1);
+}
+.flower.bloomed .center {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
 .site { display:flex; flex:1; min-width:0; flex-direction:column; gap:3px; }
 .site_header { display:flex; justify-content:space-between; align-items:center; gap:8px; }
 .site_from { font-weight:700; }

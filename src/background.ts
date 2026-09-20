@@ -2,13 +2,15 @@ console.log(
   '[From the background context] Hello from the background worker/script!'
 )
 
+const browserName = String(import.meta.env.EXTENSION_PUBLIC_BROWSER ?? '')
+
 const isFirefoxLike =
-  import.meta.env.EXTENSION_PUBLIC_BROWSER === 'firefox' ||
-  import.meta.env.EXTENSION_PUBLIC_BROWSER === 'gecko-based'
+  browserName === 'firefox' ||
+  browserName === 'gecko-based'
 
 const isSafariLike =
-  import.meta.env.EXTENSION_PUBLIC_BROWSER === 'safari' ||
-  import.meta.env.EXTENSION_PUBLIC_BROWSER === 'webkit-based'
+  browserName === 'safari' ||
+  browserName === 'webkit-based'
 
 // Safari has no side panel surface, so the sidebar page opens in a tab.
 let sidebarTabId: number | undefined
