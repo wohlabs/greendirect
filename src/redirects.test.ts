@@ -47,6 +47,20 @@ test('master effort data syncs to saved user settings without overriding user to
   assert.equal(merged[0].enabled, false)
 })
 
+test('updated default descriptions sync over stale saved descriptions', () => {
+  const currentDefaults: Redirect[] = [
+    { id: 1, from: 'google.com', to: 'ecosia.org', description: 'Updated description', enabled: true, effort: 'easy' },
+  ]
+  const storedRedirects: Redirect[] = [
+    { id: 1, from: 'google.com', to: 'ecosia.org', description: 'Stale description', enabled: false, effort: 'easy' },
+  ]
+
+  const merged = mergeRedirects(currentDefaults, storedRedirects)
+
+  assert.equal(merged[0].description, 'Updated description')
+  assert.equal(merged[0].enabled, false)
+})
+
 test('removed default hosts are pruned from persisted data', () => {
   const currentDefaults = defaultRedirects.filter((redirect) => redirect.from !== 'amazon.com')
   const storedRedirects: Redirect[] = [

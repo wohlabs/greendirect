@@ -18,20 +18,20 @@ export const EFFORT_LABELS: Record<RedirectEffort, string> = {
 }
 
 export const defaultRedirects: Redirect[] = [
-  { id: 1, from: 'google.com', to: 'ecosia.org', description: 'Search with a tree-planting search engine', enabled: true, effort: 'easy' },
-  { id: 2, from: 'booking.com', to: 'bookdifferent.com', description: 'Book hotels with eco-certified stays ranked first and half of revenue donated to charity', enabled: true, effort: 'easy' },
-  { id: 3, from: 'zara.com', to: 'vinted.com', description: 'Buy and sell secondhand fashion instead of fast fashion', enabled: true, effort: 'easy' },
-  { id: 4, from: 'shein.com', to: 'thredup.com', description: 'Shop pre-loved clothing and keep it out of landfill', enabled: true, effort: 'easy' },
-  { id: 5, from: 'bestbuy.com', to: 'backmarket.com', description: 'Refurbished phones, laptops and gadgets with less e-waste', enabled: true, effort: 'easy' },
-  { id: 6, from: 'amazon.com', to: 'etsy.com', description: 'Support small makers and independent shops', enabled: false, effort: 'medium' },
-  { id: 7, from: 'airbnb.com', to: 'ecobnb.com', description: 'Stay in eco-friendly accommodations, from organic farmhouses to green apartments', enabled: false, effort: 'medium' },
-  { id: 8, from: 'doordash.com', to: 'toogoodtogo.com', description: 'Rescue surplus food from local shops instead of ordering new', enabled: false, effort: 'medium' },
-  { id: 9, from: 'barnesandnoble.com', to: 'betterworldbooks.com', description: 'Used books that fund literacy and reduce waste', enabled: false, effort: 'medium' },
-  { id: 10, from: 'bing.com', to: 'oceanhero.today', description: 'Search and help pull plastic out of the ocean', enabled: false, effort: 'medium' },
-  { id: 11, from: 'mail.google.com', to: 'posteo.de', description: 'Private, renewable-powered email', enabled: false, effort: 'hard' },
-  { id: 12, from: 'workspace.google.com', to: 'infomaniak.com', description: 'Swiss email, storage and office tools on renewable energy', enabled: false, effort: 'hard' },
-  { id: 13, from: 'mailchimp.com', to: 'ecosend.io', description: 'Email marketing that offsets the emissions of every campaign', enabled: false, effort: 'hard' }, // TODO: confirm domain
-  { id: 14, from: 'godaddy.com', to: 'greengeeks.com', description: 'Web hosting powered by renewable energy', enabled: false, effort: 'hard' },
+  { id: 1, from: 'google.com', to: 'ecosia.org', description: 'Search with an engine that puts its profits toward planting trees and renewable energy', enabled: true, effort: 'easy' },
+  { id: 2, from: 'booking.com', to: 'bookdifferent.com', description: 'Book hotels with eco-certified stays flagged, and half the booking revenue goes to a charity you pick', enabled: true, effort: 'easy' },
+  { id: 3, from: 'zara.com', to: 'vinted.com', description: 'Buy and sell secondhand clothes instead of buying new fast fashion', enabled: true, effort: 'easy' },
+  { id: 4, from: 'shein.com', to: 'thredup.com', description: 'Thrift pre-loved clothing online instead of buying new fast fashion', enabled: true, effort: 'easy' },
+  { id: 5, from: 'bestbuy.com', to: 'backmarket.com', description: 'Buy refurbished phones, laptops and gadgets instead of new, cutting e-waste and manufacturing', enabled: true, effort: 'easy' },
+  { id: 6, from: 'amazon.com', to: 'earthhero.com', description: 'Shop a curated store of sustainable everyday goods, from home to personal care', enabled: false, effort: 'medium' },
+  { id: 7, from: 'airbnb.com', to: 'ecobnb.com', description: 'Book stays that meet eco-friendly criteria, from organic farmhouses to green apartments', enabled: false, effort: 'medium' },
+  { id: 8, from: 'doordash.com', to: 'toogoodtogo.com', description: 'Pick up discounted surplus food from local shops instead of ordering delivery', enabled: false, effort: 'medium' },
+  { id: 9, from: 'barnesandnoble.com', to: 'thriftbooks.com', description: 'Buy used books instead of new copies, usually at a lower price', enabled: false, effort: 'medium' },
+  { id: 10, from: 'bing.com', to: 'oceanhero.today', description: 'Search and fund ocean-bound plastic recovery, roughly one bottle per five searches by its own count', enabled: false, effort: 'medium' },
+  { id: 11, from: 'mail.google.com', to: 'posteo.de', description: 'Ad-free, private email run on renewable electricity, for a small monthly fee', enabled: false, effort: 'hard' },
+  { id: 12, from: 'workspace.google.com', to: 'infomaniak.com', description: 'Swiss email, storage and office tools hosted in renewable-powered data centers', enabled: false, effort: 'hard' },
+  { id: 13, from: 'mailchimp.com', to: 'ecosend.io', description: 'Email marketing that keeps campaigns lightweight and plants trees to offset their emissions', enabled: false, effort: 'hard' },
+  { id: 14, from: 'godaddy.com', to: 'greengeeks.com', description: 'Web hosting that matches its energy use with renewable energy credits', enabled: false, effort: 'hard' },
   { id: 15, from: 'analytics.google.com', to: 'withcabin.com', description: 'Privacy-first, carbon-aware website analytics', enabled: false, effort: 'hard' },
 ]
 
@@ -70,7 +70,7 @@ export function mergeRedirects(currentDefaults: Redirect[], storedRedirects: Red
       id: defaultRedirect.id,
       from: defaultRedirect.from,
       to: defaultRedirect.to,
-      description: storedRedirect?.description ?? defaultRedirect.description,
+      description: defaultRedirect.description,
       enabled: storedRedirect ? Boolean(storedRedirect.enabled) : Boolean(defaultRedirect.enabled),
       effort: defaultRedirect.effort,
     }
