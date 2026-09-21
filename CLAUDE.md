@@ -1,0 +1,118 @@
+# CLAUDE.md
+
+Guidance for Claude Code (and other agents) working in this repository.
+
+## Project overview
+
+GreenDirect is a cross-browser extension (Chrome, Firefox, Edge) built with
+[Extension.js](https://extension.js.org) and React 18 + TypeScript. It adds a
+side panel where users can see a list of popular websites paired with greener
+alternatives (e.g. `google.com` → `ecosia.org`), toggle each redirect on or
+off individually, and use "Enable All" / "Disable All" shortcuts. When a
+redirect is enabled, visiting the matching site sends the user straight to
+its alternative.
+
+## Commands
+
+Install dependencies first: `npm install`.
+
+### Dev / build
+
+- `npm run dev` — run the extension in development mode with hot reload
+  (defaults to Chromium; add `-- --browser=firefox` or `-- --browser=edge`
+  to target another browser).
+- `npm run build` — production build for Chromium.
+- `npm run build:chrome` / `npm run build:firefox` / `npm run build:edge` —
+  production build for a specific browser.
+- `npm run preview` — preview the production build in the browser.
+- `npm run start` — start a built extension without rebuilding.
+
+Build output goes to `dist/`.
+
+### Test
+
+There is no `npm test` script yet. Tests use Node's built-in test runner
+(`node:test`) directly against the TypeScript source (Node 22+ can run
+`.ts` files natively, no transpile step needed):
+
+```
+node --test src/*.test.ts
+```
+
+Currently only `src/redirects.ts` has a test file
+(`src/redirects.test.ts`), covering hostname matching, redirect resolution,
+and the default/stored-redirect merge logic. Add new `*.test.ts` files
+next to the module they cover.
+
+### Lint / type-check
+
+There is no ESLint or Prettier config in this repo. The closest thing to a
+lint step is the TypeScript compiler in `--noEmit` mode, using the strict
+`tsconfig.json` already in place:
+
+```
+npx tsc --noEmit
+```
+
+Run this after any non-trivial change, since `strict` mode is on.
+
+## Architecture
+
+The extension has three independent entry points, wired together through
+`src/manifest.json` (which uses Extension.js's `chromium:` / `firefox:`
+prefixed keys to express per-browser manifest differences — Manifest V3 on
+Chromium, V2 on Firefox):
+
+- **`src/background.ts`** — the background service worker (Chromium) /
+  background script (Firefox). Its only job is opening the side panel in a
+  way that works around each browser's quirks: Chromium's `chrome.sidePanel`
+  API only affects future toolbar clicks and must run synchronously inside
+  the click's message listener; Firefox's `sidebarAction.open()` only works
+  from a real user-input handler, so it's wired to the toolbar click
+  directly; Safari has no side panel API at all, so it falls back to
+  opening the sidebar page in a normal tab.
+
+- **`src/content/`** — a content script injected into every page
+  (`document_start`, all URLs). `scripts.tsx` is the Extension.js entry
+  point: on load it reads the stored redirect list and immediately performs
+  the redirect if the current page matches an enabled entry
+  (`window.location.assign`), and re-checks whenever storage changes. It
+  also mounts `ContentApp.tsx`, a small floating "Open sidebar" pill,
+  isolated from host-page styles via a shadow root so the widget can't be
+  broken (or leak style into) the page it's injected into.
+
+- **`src/sidebar/`** — the side panel UI. `SidebarApp.tsx` is a React
+  component that loads the current redirect list, lets the user toggle
+  redirects individually or all at once, and persists changes back to
+  storage; `scripts.tsx` mounts it into `index.html`.
+
+- **`src/redirects.ts`** — the shared domain module all three surfaces
+  depend on, and the natural place to look first when changing redirect
+  behavior. It defines the `Redirect` type and the built-in
+  `defaultRedirects` list (each tagged with an `effort` of `easy` / `medium`
+  / `hard` — only `easy` redirects are enabled out of the box), plus:
+  - `resolveRedirectTarget` — matches the current URL's hostname against
+    enabled redirects (including subdomains) and returns the longest match,
+    preserving the path/query on the target.
+  - `mergeRedirects` — reconciles the shipped defaults with what's saved in
+    storage, so editing `defaultRedirects` (new description, changed target,
+    removed entry) propagates to existing users without clobbering a toggle
+    they've already flipped.
+  - `readStoredRedirects` / `saveRedirects` — thin wrappers over
+    `chrome.storage.local` / `browser.storage.local` (both callback- and
+    promise-based storage APIs are handled, since Firefox differs from
+    Chromium here) under the shared key `greendirect.redirects`.
+
+Data flow: the content script and sidebar both call into `redirects.ts` to
+read/write the same `chrome.storage.local` entry, so a toggle in the
+sidebar takes effect on the next navigation via the content script's
+`storage.onChanged` listener — there is no messaging between background,
+content script, and sidebar beyond the "open sidebar" request.
+
+## Notes
+
+- `extension.config.js` configures a persistent browser profile per target
+  browser (`dist/extension-profile-<browser>`) used by `npm run dev`.
+- `STORE.md` holds store-listing metadata (Chrome Web Store / Firefox
+  Add-ons / Edge Add-ons) — keep it in sync when permissions or behavior
+  change, since store submissions ask for this at submission time.
