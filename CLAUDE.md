@@ -74,12 +74,22 @@ Chromium, V2 on Firefox):
 
 - **`src/content/`** — a content script injected into every page
   (`document_start`, all URLs). `scripts.tsx` is the Extension.js entry
-  point: on load it reads the stored redirect list and immediately performs
-  the redirect if the current page matches an enabled entry
-  (`window.location.assign`), and re-checks whenever storage changes. It
-  also mounts `ContentApp.tsx`, a small floating "Open sidebar" pill,
-  isolated from host-page styles via a shadow root so the widget can't be
-  broken (or leak style into) the page it's injected into.
+  point; it mounts a `Root` component into a shadow root (isolated from
+  host-page styles so the widget can't be broken, or leak style into, the
+  page it's injected into) that renders two things: `ContentApp.tsx`, a
+  small floating "Open sidebar" pill, and, whenever the current page
+  matches an enabled redirect, `RedirectOverlay.tsx`. `Root` reads the
+  stored redirect list on load and re-checks whenever storage changes;
+  when a match is found it does *not* navigate immediately. Instead the
+  overlay appears on top of the page for 5 seconds ("Redirecting to
+  `<target>`. The earth loves you.", with a countdown bar and a small
+  sprouting-leaf animation) before performing the redirect
+  (`window.location.assign`). The overlay has two buttons: "Redirect now"
+  jumps ahead immediately, and "Stay on this site" cancels the redirect
+  and dismisses the overlay for the rest of that page's lifetime (until
+  the next navigation re-injects the content script). A page with no
+  matching, or no enabled, redirect never shows the overlay and behaves
+  exactly as if the feature weren't there.
 
 - **`src/sidebar/`** — the side panel UI. `SidebarApp.tsx` is a React
   component that loads the current redirect list, lets the user toggle
