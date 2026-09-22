@@ -1,6 +1,5 @@
 import {useCallback, useEffect, useRef, useState} from 'react'
 import ReactDOM from 'react-dom/client'
-import ContentApp from './ContentApp'
 import RedirectOverlay from './RedirectOverlay'
 import './styles.css'
 import {
@@ -71,13 +70,13 @@ function sendExtensionMessage(message: unknown): Promise<unknown> {
 }
 
 /**
- * Root of the content script's React tree: renders the "Open sidebar" pill
- * and, when the current page matches an enabled redirect, the redirect
- * overlay on top of it. When a redirect is enabled the overlay -- not an
- * instant `window.location.assign` -- is what performs the redirect, giving
- * the user a 5 second window to cancel ("Stay on this site") or jump ahead
- * ("Redirect now"). A page with no matching (or no enabled) redirect never
- * shows the overlay, so it behaves exactly as before.
+ * Root of the content script's React tree: renders the redirect overlay
+ * whenever the current page matches an enabled redirect. When a redirect is
+ * enabled the overlay -- not an instant `window.location.assign` -- is what
+ * performs the redirect, giving the user a 5 second window to cancel ("Stay
+ * on this site") or jump ahead ("Redirect now"). A page with no matching (or
+ * no enabled) redirect never shows the overlay, so it behaves exactly as
+ * before.
  *
  * "Stay on this site" is remembered for the rest of this tab's visit to this
  * domain: it survives further navigations within the domain (each of which
@@ -128,7 +127,6 @@ function Root() {
 
   return (
     <>
-      <ContentApp />
       {pendingTarget && (
         <RedirectOverlay
           targetUrl={pendingTarget}

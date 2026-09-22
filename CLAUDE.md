@@ -76,10 +76,9 @@ Chromium, V2 on Firefox):
   (`document_start`, all URLs). `scripts.tsx` is the Extension.js entry
   point; it mounts a `Root` component into a shadow root (isolated from
   host-page styles so the widget can't be broken, or leak style into, the
-  page it's injected into) that renders two things: `ContentApp.tsx`, a
-  small floating "Open sidebar" pill, and, whenever the current page
-  matches an enabled redirect, `RedirectOverlay.tsx`. `Root` reads the
-  stored redirect list on load and re-checks whenever storage changes;
+  page it's injected into) that renders `RedirectOverlay.tsx` whenever the
+  current page matches an enabled redirect. `Root` reads the stored
+  redirect list on load and re-checks whenever storage changes;
   when a match is found it does *not* navigate immediately. Instead the
   overlay appears on top of the page for 5 seconds ("Redirecting to
   `<target>`. The earth loves you.", with a countdown bar and a small
