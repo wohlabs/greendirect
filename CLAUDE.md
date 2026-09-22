@@ -90,6 +90,25 @@ Chromium, V2 on Firefox):
   matching, or no enabled, redirect never shows the overlay and behaves
   exactly as if the feature weren't there.
 
+  When there's no active redirect, `Root` also renders `NudgeBanner.tsx`
+  whenever `resolveNudgeCandidate` (see `src/redirects.ts`) finds a pair
+  for the current hostname that's off by default and the user has never
+  explicitly decided on (`Redirect.userConfigured` is falsy). Unlike the
+  overlay, the banner is small, bottom-right, and non-blocking, and it
+  never navigates anywhere itself -- it just asks "There's a greener
+  alternative to `<site>`: `<alternative>`. Want to turn it on?" with
+  three options: "Yes" (enables the redirect -- which then hands off to
+  the normal RedirectOverlay countdown on the next storage-change check,
+  exactly as if the user had flipped the switch in the sidebar), "No"
+  (leaves it off), and "Remind me later". Both "Yes" and "No" set
+  `userConfigured: true` on that pair so it's never nudged again anywhere.
+  "Remind me later" (and the banner's × button) don't touch storage; they
+  just dismiss the banner for the rest of the tab's visit to that domain,
+  reappearing on a new tab or after navigating away and back -- the exact
+  same per-tab dismissal mechanism as "Stay on this site" above, tracked
+  separately in `background.ts` (`REDIRECT_OVERLAY_DISMISSAL_*` vs.
+  `NUDGE_DISMISSAL_*` messages) so answering one never affects the other.
+
 - **`src/sidebar/`** — the side panel UI. `SidebarApp.tsx` is a React
   component that loads the current redirect list, lets the user toggle
   redirects individually or all at once, and persists changes back to
@@ -97,9 +116,19 @@ Chromium, V2 on Firefox):
 
 - **`src/redirects.ts`** — the shared domain module all three surfaces
   depend on, and the natural place to look first when changing redirect
-  behavior. It defines the `Redirect` type and the built-in
-  `defaultRedirects` list (each tagged with an `effort` of `easy` / `medium`
-  / `hard` — only `easy` redirects are enabled out of the box), plus:
+  behavior. It defines the `Redirect` type -- including `userConfigured`,
+  which is false/undefined until the user explicitly decides that pair's
+  `enabled` value (a sidebar toggle, Enable All/Disable All, or a "Yes"/"No"
+  answer on the nudge banner) and is what lets the nudge banner tell
+  "off by default, never touched" apart from "off because the user turned
+  it off" -- and the built-in `defaultRedirects` list (each tagged with an
+  `effort` of `easy` / `medium` / `hard` — only `easy` redirects are enabled
+  out of the box), plus:
+  - `resolveNudgeCandidate` — matches the current URL's hostname against
+    *all* redirects (including subdomains) the same way `resolveRedirectTarget`
+    does, but returns the longest match only when it's off and
+    `userConfigured` is falsy -- the pair `NudgeBanner.tsx` should offer to
+    turn on, or `null` if there's nothing to nudge about on this page.
   - `resolveRedirectTarget` — matches the current URL's hostname against
     enabled redirects (including subdomains) and returns the longest match.
     When that redirect has a `searchMapping` (search engines and a few

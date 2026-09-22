@@ -229,3 +229,167 @@
     transition: none;
   }
 }
+
+/* ---- Nudge banner ------------------------------------------------------
+ * Shown bottom-right (see .content_script above) when the current site has
+ * an off-by-default, never-configured greener alternative -- see
+ * resolveNudgeCandidate in redirects.ts and NudgeBanner.tsx. Unlike
+ * .redirect_overlay this has no backdrop and doesn't take over the page: it
+ * sits alongside whatever the user is doing until they answer it or
+ * navigate away.
+ */
+
+.nudge_banner {
+  position: fixed;
+  right: 1em;
+  bottom: 1em;
+  z-index: 2147483646;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65em;
+  width: min(21em, calc(100vw - 2em));
+  padding: 1em 1.1em;
+  border-radius: 1em;
+  background: var(--sidebar-bg, #0a0c10);
+  color: var(--sidebar-text, #e7ece9);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+  text-align: left;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, 'Noto Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  animation: nudge_banner_in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nudge_banner_icon {
+  flex-shrink: 0;
+  font-size: 1.4em;
+  line-height: 1.3;
+}
+
+.nudge_banner_body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.nudge_banner_text {
+  margin: 0;
+  font-size: 0.85em;
+  line-height: 1.45;
+}
+
+.nudge_banner_text strong {
+  color: #6fd68a;
+}
+
+.nudge_banner_desc {
+  margin: 0;
+  font-size: 0.78em;
+  line-height: 1.4;
+  color: rgba(231, 236, 233, 0.7);
+}
+
+.nudge_banner_actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-top: 0.15em;
+  flex-wrap: wrap;
+}
+
+.nudge_banner_btn {
+  appearance: none;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 0.45em 0.85em;
+  border-radius: 9999px;
+  font-size: 0.8em;
+  font-weight: 600;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.nudge_banner_btn:hover {
+  transform: translateY(-1px);
+}
+
+.nudge_banner_btn_primary {
+  background: #22c55e;
+  color: #06210f;
+}
+
+.nudge_banner_btn_primary:hover {
+  background: #34d876;
+}
+
+.nudge_banner_btn_ghost {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--sidebar-text, #e7ece9);
+}
+
+.nudge_banner_btn_ghost:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.nudge_banner_btn_text {
+  background: transparent;
+  color: rgba(231, 236, 233, 0.65);
+  padding: 0.45em 0.4em;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.nudge_banner_btn_text:hover {
+  color: var(--sidebar-text, #e7ece9);
+}
+
+.nudge_banner_close {
+  flex-shrink: 0;
+  appearance: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: rgba(231, 236, 233, 0.5);
+  cursor: pointer;
+  font-size: 1.1em;
+  line-height: 1;
+  padding: 0.15em 0.35em;
+  border-radius: 999px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.nudge_banner_close:hover {
+  color: var(--sidebar-text, #e7ece9);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+@keyframes nudge_banner_in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nudge_banner {
+    animation: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .nudge_banner {
+    right: 0.75em;
+    bottom: 0.75em;
+    left: 0.75em;
+    width: auto;
+  }
+}

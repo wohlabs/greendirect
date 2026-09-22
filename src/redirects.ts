@@ -33,6 +33,16 @@ export type Redirect = {
   enabled: boolean
   effort: RedirectEffort
   searchMapping?: SearchMapping
+  // Whether the user has explicitly decided this pair's `enabled` value --
+  // by flipping its switch (or an Enable All/Disable All) in the sidebar,
+  // or by answering "Yes"/"No" on the nudge banner (see
+  // resolveNudgeCandidate below). false/undefined means `enabled` is still
+  // just whatever defaultRedirects shipped with. This is what lets the
+  // nudge banner tell "off by default, never touched" apart from "off
+  // because the user turned it off" -- merely being present in storage
+  // doesn't: every redirect gets persisted on first load regardless of
+  // whether the user has ever looked at it.
+  userConfigured?: boolean
 }
 
 export const REDIRECT_STORAGE_KEY = 'greendirect.redirects'
@@ -42,6 +52,16 @@ export const REDIRECT_STORAGE_KEY = 'greendirect.redirects'
 // overlay ("Stay on this site") for the domain currently open in that tab.
 export const REDIRECT_OVERLAY_DISMISSAL_QUERY_MESSAGE = 'greendirect.redirectOverlay.queryDismissed'
 export const REDIRECT_OVERLAY_DISMISSAL_SET_MESSAGE = 'greendirect.redirectOverlay.setDismissed'
+
+// Same idea, for the "greener alternative available" nudge banner (see
+// resolveNudgeCandidate below and content/NudgeBanner.tsx): "Remind me
+// later" dismisses it the same way "Stay on this site" dismisses the
+// redirect overlay above -- for the rest of this tab's visit to the
+// current domain, re-arming on a new tab or after navigating away and
+// back. Tracked separately from the redirect-overlay dismissal so
+// answering one doesn't affect the other.
+export const NUDGE_DISMISSAL_QUERY_MESSAGE = 'greendirect.nudgeBanner.queryDismissed'
+export const NUDGE_DISMISSAL_SET_MESSAGE = 'greendirect.nudgeBanner.setDismissed'
 
 export const EFFORT_LABELS: Record<RedirectEffort, string> = {
   easy: 'Easy switch',
@@ -167,6 +187,7 @@ export function normalizeRedirects(redirects: Redirect[] = []): Redirect[] {
       description: redirect.description?.trim() ?? '',
       enabled: Boolean(redirect.enabled),
       effort: normalizeEffort(redirect.effort),
+      userConfigured: Boolean(redirect.userConfigured),
     }))
     .filter((redirect, index, items) => items.findIndex((item) => item.from === redirect.from) === index)
 }
@@ -188,6 +209,10 @@ export function mergeRedirects(currentDefaults: Redirect[], storedRedirects: Red
       description: defaultRedirect.description,
       enabled: storedRedirect ? Boolean(storedRedirect.enabled) : Boolean(defaultRedirect.enabled),
       effort: defaultRedirect.effort,
+      // Whether the user has ever explicitly decided this one, not just
+      // inherited whatever defaultRedirects shipped with -- see the field's
+      // doc comment on the Redirect type above.
+      userConfigured: storedRedirect ? Boolean(storedRedirect.userConfigured) : false,
       // Like `to`/`description`/`effort` above, the search-equivalence
       // mapping is part of the shipped redirect definition, not something
       // a user can set -- always take it from code, never from whatever a
@@ -315,6 +340,39 @@ export function resolveRedirectTarget(currentUrl: string, redirects: Redirect[] 
   }
 
   return targetUrl.toString()
+}
+
+// Finds the pair the "greener alternative available" nudge banner should
+// offer for the current page, or null if none applies. Uses the same
+// longest-hostname-match logic as resolveRedirectTarget above, but over
+// *all* redirects rather than just enabled ones -- the whole point is to
+// catch a pair that's currently off. The candidate only qualifies when it's
+// both off (`!enabled`) and never explicitly decided (`!userConfigured`):
+// an enabled pair doesn't need nudging (it's already redirecting, and
+// resolveRedirectTarget will have claimed that hostname), and a pair the
+// user already answered "No" (or toggled off/on themselves) is marked
+// userConfigured and should never be nudged again.
+export function resolveNudgeCandidate(currentUrl: string, redirects: Redirect[] = defaultRedirects): Redirect | null {
+  let hostname: string
+  try {
+    hostname = new URL(currentUrl).hostname
+  } catch {
+    return null
+  }
+
+  let selected: Redirect | null = null
+  for (let i = 0; i < redirects.length; i++) {
+    const redirect = redirects[i]
+    if (!matchesHostname(hostname, redirect.from)) continue
+
+    if (selected === null || redirect.from.length > selected.from.length) {
+      selected = redirect
+    }
+  }
+
+  if (selected === null || selected.enabled || selected.userConfigured) return null
+
+  return selected
 }
 
 function getStorage() {

@@ -43,18 +43,23 @@ export default function SidebarApp() {
     await saveRedirects(nextRedirects)
   }
 
+  // Flipping a switch here (individually, or via Enable All/Disable All)
+  // is what marks a pair `userConfigured`, so it also doubles as the "the
+  // user answered" signal the content script's nudge banner checks (see
+  // resolveNudgeCandidate in ../redirects and content/scripts.tsx) -- a
+  // pair touched here should never get nudged on some other site later.
   function toggle(id: number) {
-    const nextRedirects = redirects.map(item => item.id === id ? {...item, enabled: !item.enabled} : item)
+    const nextRedirects = redirects.map(item => item.id === id ? {...item, enabled: !item.enabled, userConfigured: true} : item)
     void persist(nextRedirects)
   }
 
   function enableAll() {
-    const nextRedirects = redirects.map(item => ({...item, enabled: true}))
+    const nextRedirects = redirects.map(item => ({...item, enabled: true, userConfigured: true}))
     void persist(nextRedirects)
   }
 
   function disableAll() {
-    const nextRedirects = redirects.map(item => ({...item, enabled: false}))
+    const nextRedirects = redirects.map(item => ({...item, enabled: false, userConfigured: true}))
     void persist(nextRedirects)
   }
 

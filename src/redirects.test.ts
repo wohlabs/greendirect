@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { defaultRedirects, displayHostname, mergeRedirects, resolveRedirectTarget, type Redirect } from './redirects.ts'
+import { defaultRedirects, displayHostname, mergeRedirects, resolveNudgeCandidate, resolveRedirectTarget, type Redirect } from './redirects.ts'
 
 test('display hostname strips a leading www. so the list reads consistently', () => {
   assert.equal(displayHostname('www.google.com'), 'google.com')
@@ -142,4 +142,62 @@ test('a pair with no searchMapping still falls back to the previous path/query p
     resolveRedirectTarget('https://mailchimp.com/some/path?utm_source=x', redirects),
     'https://ecosend.io/some/path?utm_source=x'
   )
+})
+
+test('mergeRedirects preserves a stored userConfigured flag, and defaults it to false otherwise', () => {
+  const currentDefaults: Redirect[] = [
+    { id: 1, from: 'airbnb.com', to: 'ecobnb.com', description: '', enabled: false, effort: 'medium' },
+  ]
+
+  const untouched = mergeRedirects(currentDefaults, [])
+  assert.equal(untouched[0].userConfigured, false)
+
+  const storedRedirects: Redirect[] = [
+    { id: 1, from: 'airbnb.com', to: 'ecobnb.com', description: '', enabled: false, effort: 'medium', userConfigured: true },
+  ]
+  const touched = mergeRedirects(currentDefaults, storedRedirects)
+  assert.equal(touched[0].userConfigured, true)
+})
+
+test('resolveNudgeCandidate offers an off-by-default, never-configured pair', () => {
+  const redirects: Redirect[] = [
+    { id: 1, from: 'airbnb.com', to: 'ecobnb.com', description: '', enabled: false, effort: 'medium' },
+  ]
+
+  const candidate = resolveNudgeCandidate('https://airbnb.com/rooms/123', redirects)
+  assert.equal(candidate?.id, 1)
+})
+
+test('resolveNudgeCandidate stays quiet once the user has explicitly decided (userConfigured)', () => {
+  const redirects: Redirect[] = [
+    { id: 1, from: 'airbnb.com', to: 'ecobnb.com', description: '', enabled: false, effort: 'medium', userConfigured: true },
+  ]
+
+  assert.equal(resolveNudgeCandidate('https://airbnb.com/rooms/123', redirects), null)
+})
+
+test('resolveNudgeCandidate stays quiet for a pair that is already enabled', () => {
+  const redirects: Redirect[] = [
+    { id: 1, from: 'www.google.com', to: 'ecosia.org', description: '', enabled: true, effort: 'easy' },
+  ]
+
+  assert.equal(resolveNudgeCandidate('https://www.google.com/search?q=clothes', redirects), null)
+})
+
+test('resolveNudgeCandidate stays quiet when nothing matches the hostname', () => {
+  const redirects: Redirect[] = [
+    { id: 1, from: 'airbnb.com', to: 'ecobnb.com', description: '', enabled: false, effort: 'medium' },
+  ]
+
+  assert.equal(resolveNudgeCandidate('https://example.com/', redirects), null)
+})
+
+test('resolveNudgeCandidate prefers the most specific unconfigured host match', () => {
+  const redirects: Redirect[] = [
+    { id: 1, from: 'google.com', to: 'ecosia.org', description: '', enabled: false, effort: 'medium' },
+    { id: 2, from: 'maps.google.com', to: 'openstreetmap.org', description: '', enabled: false, effort: 'medium' },
+  ]
+
+  const candidate = resolveNudgeCandidate('https://maps.google.com/maps?q=green', redirects)
+  assert.equal(candidate?.id, 2)
 })
