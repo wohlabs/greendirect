@@ -3,7 +3,12 @@ import ReactDOM from 'react-dom/client'
 import ContentApp from './ContentApp'
 import RedirectOverlay from './RedirectOverlay'
 import './styles.css'
-import {readStoredRedirects, resolveRedirectTarget} from '../redirects'
+import {
+  readStoredRedirects,
+  resolveRedirectTarget,
+  REDIRECT_OVERLAY_DISMISSAL_QUERY_MESSAGE,
+  REDIRECT_OVERLAY_DISMISSAL_SET_MESSAGE,
+} from '../redirects'
 
 console.log('[From the page context] Hello from content_scripts!')
 
@@ -27,6 +32,44 @@ function removeStorageChangeListener(listener: () => void) {
   }
 }
 
+// The overlay's "Stay on this site" choice needs to survive every ordinary
+// navigation within the same domain in this tab (the content script
+// re-injects fresh on each one) but reset the moment the tab leaves that
+// domain -- even if the user comes back to it later in the same tab. A
+// page's own storage can't tell those two cases apart (sessionStorage, for
+// example, survives for as long as the tab does, regardless of what else it
+// visited in between), so the background script tracks it instead, keyed by
+// tab. These two calls are how the content script reads and updates that.
+function queryOverlayDismissed(hostname: string): Promise<boolean> {
+  return sendExtensionMessage({type: REDIRECT_OVERLAY_DISMISSAL_QUERY_MESSAGE, hostname})
+    .then((response) => Boolean((response as {dismissed?: boolean} | undefined)?.dismissed))
+    .catch(() => false)
+}
+
+function notifyOverlayDismissed(hostname: string) {
+  sendExtensionMessage({type: REDIRECT_OVERLAY_DISMISSAL_SET_MESSAGE, hostname}).catch(() => {})
+}
+
+function sendExtensionMessage(message: unknown): Promise<unknown> {
+  try {
+    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+      return Promise.resolve(chrome.runtime.sendMessage(message))
+    }
+
+    if (typeof browser !== 'undefined' && browser.runtime?.sendMessage) {
+      return Promise.resolve(browser.runtime.sendMessage(message))
+    }
+  } catch {
+    // chrome.runtime.sendMessage throws synchronously (rather than
+    // rejecting) when the extension context has been invalidated, e.g. the
+    // extension was reloaded while this page was still open.
+  }
+
+  // No messaging channel to the background script -- fail open so the
+  // overlay still shows rather than silently never showing again.
+  return Promise.resolve(undefined)
+}
+
 /**
  * Root of the content script's React tree: renders the "Open sidebar" pill
  * and, when the current page matches an enabled redirect, the redirect
@@ -35,16 +78,24 @@ function removeStorageChangeListener(listener: () => void) {
  * the user a 5 second window to cancel ("Stay on this site") or jump ahead
  * ("Redirect now"). A page with no matching (or no enabled) redirect never
  * shows the overlay, so it behaves exactly as before.
+ *
+ * "Stay on this site" is remembered for the rest of this tab's visit to this
+ * domain: it survives further navigations within the domain (each of which
+ * re-injects this content script fresh) and further storage changes (e.g.
+ * toggling an unrelated redirect elsewhere), but resets -- so the overlay can
+ * show again -- in a different tab or once the user leaves the domain, even
+ * if they come back to it later in this same tab. See
+ * queryOverlayDismissed/notifyOverlayDismissed above.
  */
 function Root() {
   const [pendingTarget, setPendingTarget] = useState<string | null>(null)
-  // Once the user dismisses the overlay for this page, further storage
-  // changes (e.g. toggling an unrelated redirect elsewhere) must not bring
-  // it back -- "stay as is" should stick until the next navigation, which
-  // re-injects the content script and starts this state fresh.
   const dismissedRef = useRef(false)
 
   const checkRedirect = useCallback(async () => {
+    if (!dismissedRef.current) {
+      dismissedRef.current = await queryOverlayDismissed(window.location.hostname)
+    }
+
     if (dismissedRef.current) return
 
     const redirects = await readStoredRedirects()
@@ -66,6 +117,7 @@ function Root() {
 
   const handleStay = useCallback(() => {
     dismissedRef.current = true
+    notifyOverlayDismissed(window.location.hostname)
     setPendingTarget(null)
   }, [])
 
@@ -95,6 +147,13 @@ function Root() {
  */
 export default function initial() {
   const mountWidget = () => {
+    // Guard against a duplicate widget: a stale root can be left behind by
+    // a previous injection that never got torn down (a dev-mode hot reload
+    // racing with this one, or the extension having been reloaded without
+    // the tab being refreshed, so the old content script is still alive).
+    // Only one should ever be mounted on the page at a time.
+    document.querySelectorAll('[data-extension-root]').forEach((el) => el.remove())
+
     const rootDiv = document.createElement('div')
     rootDiv.setAttribute('data-extension-root', 'true')
     // Isolate the host from page styles (e.g. example.com ships div{opacity:.8},

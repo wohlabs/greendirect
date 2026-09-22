@@ -11,6 +11,12 @@ export type Redirect = {
 
 export const REDIRECT_STORAGE_KEY = 'greendirect.redirects'
 
+// Message types used between the content script and the background script
+// to track, per browser tab, whether the user has dismissed the redirect
+// overlay ("Stay on this site") for the domain currently open in that tab.
+export const REDIRECT_OVERLAY_DISMISSAL_QUERY_MESSAGE = 'greendirect.redirectOverlay.queryDismissed'
+export const REDIRECT_OVERLAY_DISMISSAL_SET_MESSAGE = 'greendirect.redirectOverlay.setDismissed'
+
 export const EFFORT_LABELS: Record<RedirectEffort, string> = {
   easy: 'Easy switch',
   medium: 'Medium effort',

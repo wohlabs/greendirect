@@ -1,3 +1,8 @@
+import {
+  REDIRECT_OVERLAY_DISMISSAL_QUERY_MESSAGE,
+  REDIRECT_OVERLAY_DISMISSAL_SET_MESSAGE,
+} from './redirects'
+
 console.log(
   '[From the background context] Hello from the background worker/script!'
 )
@@ -9,6 +14,94 @@ const isFirefoxLike =
 const isSafariLike =
   import.meta.env.EXTENSION_PUBLIC_BROWSER === 'safari' ||
   import.meta.env.EXTENSION_PUBLIC_BROWSER === 'webkit-based'
+
+// ---- Redirect-overlay "stay on this site" dismissal, tracked per tab ----
+//
+// The overlay (content/RedirectOverlay.tsx, wired up from content/scripts.tsx)
+// remembers "Stay on this site" for the rest of the tab's visit to that
+// domain. Neither the page's own storage nor the content script alone can
+// express that: the content script re-injects fresh on every navigation, and
+// the one per-origin storage a page could use itself (sessionStorage)
+// survives for as long as the tab does regardless of what else the tab
+// visited in between -- so leaving the domain and coming back in the same
+// tab would never re-show the overlay. Tracking it here instead, keyed by
+// tabId, and re-arming it the moment the content script reports a different
+// hostname for that tab, is what makes "leaving the domain" actually clear
+// the dismissal.
+type TabDismissal = {hostname: string; dismissed: boolean}
+
+const dismissalByTab = new Map<number, TabDismissal>()
+
+function dismissalStorageKey(tabId: number) {
+  return `greendirect.tabDismissal.${tabId}`
+}
+
+// Chromium (and Safari) service workers are evicted after roughly 30s idle
+// and restart with a blank module scope, which would otherwise wipe
+// dismissalByTab and make the overlay reappear on a domain the tab never
+// left. chrome.storage.session is an in-memory store, never written to
+// disk, that survives exactly that restart and is cleared only when the
+// browser itself closes -- the lifetime this dismissal needs. It's skipped
+// on Firefox: that build's background page is persistent (manifest v2, see
+// src/manifest.json), so dismissalByTab alone already survives as long as
+// the browser stays open, and chrome.storage.session may not exist there.
+function getSessionArea() {
+  if (isFirefoxLike) return undefined
+  return typeof chrome !== 'undefined' ? chrome.storage?.session : undefined
+}
+
+async function loadDismissal(tabId: number): Promise<TabDismissal | undefined> {
+  const cached = dismissalByTab.get(tabId)
+  if (cached) return cached
+
+  const area = getSessionArea()
+  if (!area) return undefined
+
+  try {
+    const key = dismissalStorageKey(tabId)
+    const stored = await area.get(key)
+    const value = stored[key] as TabDismissal | undefined
+    if (value) dismissalByTab.set(tabId, value)
+    return value
+  } catch {
+    return undefined
+  }
+}
+
+function saveDismissal(tabId: number, state: TabDismissal) {
+  dismissalByTab.set(tabId, state)
+
+  const area = getSessionArea()
+  if (!area) return
+
+  area.set({[dismissalStorageKey(tabId)]: state}).catch(() => {})
+}
+
+function clearDismissal(tabId: number) {
+  dismissalByTab.delete(tabId)
+
+  const area = getSessionArea()
+  if (!area) return
+
+  area.remove(dismissalStorageKey(tabId)).catch(() => {})
+}
+
+/**
+ * Answers "is the overlay dismissed for this tab on this hostname", and
+ * keeps dismissalByTab in sync with whatever hostname the content script
+ * reports: a hostname that doesn't match what's on file means the tab has
+ * navigated to a different domain since the last dismissal (or query), so
+ * this starts a fresh, un-dismissed record for it -- the actual mechanism
+ * that re-arms the overlay once the user leaves a domain.
+ */
+async function resolveDismissed(tabId: number, hostname: string): Promise<boolean> {
+  const current = await loadDismissal(tabId)
+
+  if (current && current.hostname === hostname) return current.dismissed
+
+  saveDismissal(tabId, {hostname, dismissed: false})
+  return false
+}
 
 // Safari has no side panel surface, so the sidebar page opens in a tab.
 let sidebarTabId: number | undefined
@@ -81,5 +174,53 @@ if (!isFirefoxLike && !isSafariLike) {
     } catch (error) {
       console.error(error)
     }
+  })
+}
+
+// Wired up for every build: unlike the sidebar quirks above, tracking the
+// overlay's dismissal behaves the same way regardless of target browser.
+if (isFirefoxLike) {
+  if (typeof browser !== 'undefined') {
+    browser.runtime.onMessage.addListener((rawMessage: unknown, sender: {tab?: {id?: number}}) => {
+      const message = rawMessage as {type?: string; hostname?: string} | null | undefined
+      if (!message) return undefined
+
+      const tabId = sender.tab?.id
+      if (tabId === undefined) return undefined
+
+      if (message.type === REDIRECT_OVERLAY_DISMISSAL_QUERY_MESSAGE && message.hostname) {
+        return resolveDismissed(tabId, message.hostname).then((dismissed) => ({dismissed}))
+      }
+
+      if (message.type === REDIRECT_OVERLAY_DISMISSAL_SET_MESSAGE && message.hostname) {
+        saveDismissal(tabId, {hostname: message.hostname, dismissed: true})
+      }
+
+      return undefined
+    })
+
+    browser.tabs.onRemoved.addListener((tabId) => {
+      clearDismissal(tabId)
+    })
+  }
+} else if (typeof chrome !== 'undefined') {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (!message) return
+
+    const tabId = sender.tab?.id
+    if (tabId === undefined) return
+
+    if (message.type === REDIRECT_OVERLAY_DISMISSAL_QUERY_MESSAGE && message.hostname) {
+      void resolveDismissed(tabId, message.hostname).then((dismissed) => sendResponse({dismissed}))
+      return true // keep the message channel open for the async sendResponse above
+    }
+
+    if (message.type === REDIRECT_OVERLAY_DISMISSAL_SET_MESSAGE && message.hostname) {
+      saveDismissal(tabId, {hostname: message.hostname, dismissed: true})
+    }
+  })
+
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    clearDismissal(tabId)
   })
 }
