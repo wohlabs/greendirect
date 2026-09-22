@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "firefox:browser_specific_settings": {
     "gecko": {
-      "id": "react@extension.js",
+      "id": "{7541944e-818e-418a-b401-ce6a78035cfc}",
       "data_collection_permissions": {
         "required": [
           "none"
