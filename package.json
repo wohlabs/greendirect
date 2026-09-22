@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "greendirect",
-  "description": "Adds a sidebar panel to the browser with a simple React page.",
+  "description": "Redirect popular sites to greener alternatives",
   "version": "1.0.0",
   "license": "MIT",
   "type": "module",
@@ -13,8 +13,9 @@
     "@types/chrome": "^0.0.287",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
-    "typescript": "7.0.2",
-    "extension": "^4.1.20"
+    "addons-linter": "^10.13.0",
+    "extension": "^4.1.20",
+    "typescript": "7.0.2"
   },
   "scripts": {
     "dev": "extension dev",

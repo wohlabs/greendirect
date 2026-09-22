@@ -64,7 +64,7 @@ export const defaultRedirects: Redirect[] = [
       target: { style: 'query-param', path: '/search', param: 'q' },
     },
   },
-  { id: 2, from: 'www.booking.com', to: 'bookdifferent.com', description: 'Book hotels with eco-certified stays flagged, and half the booking revenue goes to a charity you pick', enabled: true, effort: 'easy' },
+  { id: 2, from: 'www.booking.com', to: 'ecohotels.com', description: 'Book hotels with visible sustainability certifications and a tree planted for every stay', enabled: true, effort: 'easy' },
   {
     id: 3,
     from: 'zara.com',
