@@ -1,5 +1,30 @@
 export type RedirectEffort = 'easy' | 'medium' | 'hard'
 
+// Describes one endpoint (source or target) of a search-query equivalence:
+// either a classic "?param=term" search page, or a site that encodes the
+// term directly in the path (e.g. SHEIN's /pdsearch/<term>/, no query
+// param at all). For the 'path-segment' style, `path` is a template
+// containing exactly one `{query}` placeholder, e.g. '/pdsearch/{query}/'.
+export type SearchMappingLocation =
+  | { style: 'query-param'; path: string; param: string }
+  | { style: 'path-segment'; path: string }
+
+// Lets a redirect carry over the actual search term instead of just
+// swapping hostnames: visiting google.com/search?q=clothes with the
+// google -> ecosia redirect enabled lands on ecosia.org/search?q=clothes,
+// not just ecosia.org's homepage. Only defined for pairs where both sites
+// were confirmed to expose a real search URL in this shape -- see the
+// entries in defaultRedirects below for which pairs that covers. When a
+// redirect has a searchMapping but the page the user is actually on isn't
+// recognized as a search-results page on the source site (a product page,
+// the homepage, an account page, ...), resolveRedirectTarget falls back to
+// the target's homepage instead of carrying over a source-specific path
+// that has no equivalent meaning on a differently-structured site.
+export type SearchMapping = {
+  source: SearchMappingLocation
+  target: SearchMappingLocation
+}
+
 export type Redirect = {
   id: number
   from: string
@@ -7,6 +32,7 @@ export type Redirect = {
   description?: string
   enabled: boolean
   effort: RedirectEffort
+  searchMapping?: SearchMapping
 }
 
 export const REDIRECT_STORAGE_KEY = 'greendirect.redirects'
@@ -24,16 +50,99 @@ export const EFFORT_LABELS: Record<RedirectEffort, string> = {
 }
 
 export const defaultRedirects: Redirect[] = [
-  { id: 1, from: 'www.google.com', to: 'ecosia.org', description: 'Search with an engine that puts its profits toward planting trees and renewable energy', enabled: true, effort: 'easy' },
+  {
+    id: 1,
+    from: 'www.google.com',
+    to: 'ecosia.org',
+    description: 'Search with an engine that puts its profits toward planting trees and renewable energy',
+    enabled: true,
+    effort: 'easy',
+    // Confirmed: both google.com and ecosia.org serve search results at
+    // /search?q=<term>.
+    searchMapping: {
+      source: { style: 'query-param', path: '/search', param: 'q' },
+      target: { style: 'query-param', path: '/search', param: 'q' },
+    },
+  },
   { id: 2, from: 'www.booking.com', to: 'bookdifferent.com', description: 'Book hotels with eco-certified stays flagged, and half the booking revenue goes to a charity you pick', enabled: true, effort: 'easy' },
-  { id: 3, from: 'zara.com', to: 'vinted.com', description: 'Buy and sell secondhand clothes instead of buying new fast fashion', enabled: true, effort: 'easy' },
-  { id: 4, from: 'shein.com', to: 'thredup.com', description: 'Thrift pre-loved clothing online instead of buying new fast fashion', enabled: true, effort: 'easy' },
-  { id: 5, from: 'bestbuy.com', to: 'backmarket.com', description: 'Buy refurbished phones, laptops and gadgets instead of new, cutting e-waste and manufacturing', enabled: true, effort: 'easy' },
-  { id: 6, from: 'www.amazon.com', to: 'earthhero.com', description: 'Shop a curated store of sustainable everyday goods, from home to personal care', enabled: false, effort: 'medium' },
+  {
+    id: 3,
+    from: 'zara.com',
+    to: 'vinted.com',
+    description: 'Buy and sell secondhand clothes instead of buying new fast fashion',
+    enabled: true,
+    effort: 'easy',
+    // Confirmed: Zara's search lives at /us/en/search?searchTerm=<term>;
+    // Vinted's at /catalog?search_text=<term>.
+    searchMapping: {
+      source: { style: 'query-param', path: '/us/en/search', param: 'searchTerm' },
+      target: { style: 'query-param', path: '/catalog', param: 'search_text' },
+    },
+  },
+  {
+    id: 4,
+    from: 'shein.com',
+    to: 'thredup.com',
+    description: 'Thrift pre-loved clothing online instead of buying new fast fashion',
+    enabled: true,
+    effort: 'easy',
+    // Confirmed: SHEIN encodes the term in the path itself, e.g.
+    // /pdsearch/jeans/ (no query param), while ThredUp uses /search?q=<term>.
+    searchMapping: {
+      source: { style: 'path-segment', path: '/pdsearch/{query}/' },
+      target: { style: 'query-param', path: '/search', param: 'q' },
+    },
+  },
+  {
+    id: 5,
+    from: 'bestbuy.com',
+    to: 'backmarket.com',
+    description: 'Buy refurbished phones, laptops and gadgets instead of new, cutting e-waste and manufacturing',
+    enabled: true,
+    effort: 'easy',
+    // Confirmed: Best Buy's search is /site/searchpage.jsp?st=<term>; Back
+    // Market's is /en-us/search?q=<term>.
+    searchMapping: {
+      source: { style: 'query-param', path: '/site/searchpage.jsp', param: 'st' },
+      target: { style: 'query-param', path: '/en-us/search', param: 'q' },
+    },
+  },
+  {
+    id: 6,
+    from: 'www.amazon.com',
+    to: 'earthhero.com',
+    description: 'Shop a curated store of sustainable everyday goods, from home to personal care',
+    enabled: false,
+    effort: 'medium',
+    // Confirmed: Amazon's search is /s?k=<term>. EarthHero runs on Shopify,
+    // whose storefront search is always /search?q=<term>.
+    searchMapping: {
+      source: { style: 'query-param', path: '/s', param: 'k' },
+      target: { style: 'query-param', path: '/search', param: 'q' },
+    },
+  },
   { id: 7, from: 'airbnb.com', to: 'ecobnb.com', description: 'Book stays that meet eco-friendly criteria, from organic farmhouses to green apartments', enabled: false, effort: 'medium' },
   { id: 8, from: 'www.doordash.com', to: 'toogoodtogo.com', description: 'Pick up discounted surplus food from local shops instead of ordering delivery', enabled: false, effort: 'medium' },
   { id: 9, from: 'barnesandnoble.com', to: 'thriftbooks.com', description: 'Buy used books instead of new copies, usually at a lower price', enabled: false, effort: 'medium' },
-  { id: 10, from: 'www.bing.com', to: 'oceanhero.today', description: 'Search and fund ocean-bound plastic recovery, roughly one bottle per five searches by its own count', enabled: false, effort: 'medium' },
+  {
+    id: 10,
+    from: 'www.bing.com',
+    to: 'oceanhero.today',
+    description: 'Search and fund ocean-bound plastic recovery, roughly one bottle per five searches by its own count',
+    enabled: false,
+    effort: 'medium',
+    // Bing's search is confirmed at /search?q=<term>. OceanHero's own
+    // /search path is confirmed too (it's explicitly blocked in their
+    // robots.txt, which only makes sense if the path is live), but its
+    // exact param name isn't independently confirmed -- `q` is the
+    // near-universal convention search UIs use, so it's the best-effort
+    // guess here. Worst case if it's wrong: the user lands on OceanHero's
+    // search page without a prefilled query, not a broken link.
+    searchMapping: {
+      source: { style: 'query-param', path: '/search', param: 'q' },
+      target: { style: 'query-param', path: '/web', param: 'q' },
+    },
+  },
   { id: 11, from: 'mail.google.com', to: 'posteo.de', description: 'Ad-free, private email run on renewable electricity, for a small monthly fee', enabled: false, effort: 'hard' },
   { id: 12, from: 'workspace.google.com', to: 'infomaniak.com', description: 'Swiss email, storage and office tools hosted in renewable-powered data centers', enabled: false, effort: 'hard' },
   { id: 13, from: 'mailchimp.com', to: 'ecosend.io', description: 'Email marketing that keeps campaigns lightweight and plants trees to offset their emissions', enabled: false, effort: 'hard' },
@@ -79,6 +188,11 @@ export function mergeRedirects(currentDefaults: Redirect[], storedRedirects: Red
       description: defaultRedirect.description,
       enabled: storedRedirect ? Boolean(storedRedirect.enabled) : Boolean(defaultRedirect.enabled),
       effort: defaultRedirect.effort,
+      // Like `to`/`description`/`effort` above, the search-equivalence
+      // mapping is part of the shipped redirect definition, not something
+      // a user can set -- always take it from code, never from whatever a
+      // (possibly older-shaped) stored record happens to carry.
+      searchMapping: defaultRedirect.searchMapping,
     }
   })
 }
@@ -100,6 +214,54 @@ export function matchesHostname(hostname: string, redirectSource: string) {
   const normalizedSource = redirectSource.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
 
   return lowerHost === normalizedSource || lowerHost.endsWith(`.${normalizedSource}`)
+}
+
+function normalizePathname(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith('/')) return pathname.slice(0, -1)
+  return pathname
+}
+
+// Pulls the literal search term out of a URL that matches a
+// SearchMappingLocation's shape, or returns null if the URL isn't actually
+// a search-results page in that shape (e.g. the user is on the site's
+// homepage or a product page rather than a search page).
+function extractSearchTerm(url: URL, location: SearchMappingLocation): string | null {
+  if (location.style === 'query-param') {
+    if (normalizePathname(url.pathname) !== normalizePathname(location.path)) return null
+
+    const value = url.searchParams.get(location.param)
+    return value && value.trim().length > 0 ? value : null
+  }
+
+  const [prefix, suffix = ''] = location.path.split('{query}')
+  if (!url.pathname.startsWith(prefix) || !url.pathname.endsWith(suffix)) return null
+
+  const encoded = url.pathname.slice(prefix.length, url.pathname.length - suffix.length)
+  if (!encoded) return null
+
+  try {
+    // Some sites (SHEIN included) encode spaces in path segments as '+'
+    // rather than '%20'.
+    return decodeURIComponent(encoded.replace(/\+/g, ' ')) || null
+  } catch {
+    return null
+  }
+}
+
+// Writes `term` onto `url` in the shape a SearchMappingLocation describes.
+// Mutates pathname/search in place; hostname/protocol/port are left as
+// resolveRedirectTarget already set them to the redirect's target.
+function applySearchTerm(url: URL, location: SearchMappingLocation, term: string): void {
+  if (location.style === 'query-param') {
+    url.pathname = location.path
+    url.search = ''
+    url.searchParams.set(location.param, term)
+    return
+  }
+
+  const [prefix, suffix = ''] = location.path.split('{query}')
+  url.pathname = `${prefix}${encodeURIComponent(term)}${suffix}`
+  url.search = ''
 }
 
 export function resolveRedirectTarget(currentUrl: string, redirects: Redirect[] = defaultRedirects): string | null {
@@ -126,6 +288,27 @@ export function resolveRedirectTarget(currentUrl: string, redirects: Redirect[] 
   targetUrl.protocol = selectedTarget.protocol
   targetUrl.hostname = selectedTarget.hostname
   targetUrl.port = selectedTarget.port
+
+  if (selected.searchMapping) {
+    const term = extractSearchTerm(parsedCurrentUrl, selected.searchMapping.source)
+
+    if (term) {
+      // Same search, same term, on the greener site: e.g. searching
+      // "clothes" on google.com lands on the equivalent ecosia.org search
+      // for "clothes", not just ecosia's homepage.
+      applySearchTerm(targetUrl, selected.searchMapping.target, term)
+    } else {
+      // The current page isn't a recognized search-results page on the
+      // source site, so there's no term to carry over. Rather than copy a
+      // source-specific path (a product page, an account page, ...) that
+      // has no equivalent meaning on a differently-structured target site,
+      // land on the target's homepage.
+      targetUrl.pathname = '/'
+      targetUrl.search = ''
+    }
+
+    targetUrl.hash = ''
+  }
 
   if (parsedCurrentUrl.hostname === selectedTarget.hostname && parsedCurrentUrl.pathname === targetUrl.pathname && parsedCurrentUrl.search === targetUrl.search) {
     return null

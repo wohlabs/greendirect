@@ -101,8 +101,21 @@ Chromium, V2 on Firefox):
   `defaultRedirects` list (each tagged with an `effort` of `easy` / `medium`
   / `hard` — only `easy` redirects are enabled out of the box), plus:
   - `resolveRedirectTarget` — matches the current URL's hostname against
-    enabled redirects (including subdomains) and returns the longest match,
-    preserving the path/query on the target.
+    enabled redirects (including subdomains) and returns the longest match.
+    When that redirect has a `searchMapping` (search engines and a few
+    product-search sites — see the `defaultRedirects` entries with a
+    `searchMapping` field, and the comments on the `SearchMapping` /
+    `SearchMappingLocation` types above `Redirect`) and the current page is
+    a recognized search-results page on the source site, the actual search
+    term is carried over to the equivalent search on the target (e.g.
+    `google.com/search?q=clothes` -> `ecosia.org/search?q=clothes`, or
+    `shein.com/pdsearch/jeans/` -> `thredup.com/search?q=jeans` for a site
+    that encodes the term in the path instead of a query param). Otherwise
+    — no mapping, or the current page isn't a search page in that shape —
+    it preserves the path/query as-is for pairs without a `searchMapping`,
+    or lands on the target's homepage for pairs that have one (a
+    source-specific path has no equivalent meaning on a differently
+    structured target site).
   - `mergeRedirects` — reconciles the shipped defaults with what's saved in
     storage, so editing `defaultRedirects` (new description, changed target,
     removed entry) propagates to existing users without clobbering a toggle
