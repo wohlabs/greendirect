@@ -22,7 +22,7 @@ body {
 .sidebar_app {
   display: flex;
   flex-direction: column;
-  padding: 14px;
+  padding: 14px 14px 60px;
   gap: 10px;
   max-height: 100%;
   overflow-y: auto;
@@ -146,4 +146,27 @@ body {
 
 .sidebar_footer { margin-top:10px; text-align:center; color:var(--muted); font-size:12px; }
 
-@media (max-width:420px) { .sidebar_app { padding:10px; } }
+@media (max-width:420px) { .sidebar_app { padding:10px 10px 56px; } }
+
+/* Floating "Suggest a pair" button, pinned to the sidebar's bottom-right
+   corner regardless of scroll position in .redirect_list. */
+.suggest_fab {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 12px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 6px 16px rgba(21, 48, 28, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.suggest_fab:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(21, 48, 28, 0.32); }
+.suggest_fab:active { transform: translateY(0); box-shadow: 0 4px 10px rgba(21, 48, 28, 0.25); }

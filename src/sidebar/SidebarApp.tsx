@@ -3,6 +3,8 @@ import './styles.css'
 import reactLogo from '../images/icon.png'
 import { defaultRedirects, EFFORT_LABELS, readStoredRedirects, saveRedirects, type Redirect } from '../redirects'
 
+const SUGGEST_FORM_URL = 'https://forms.gle/qDM3g7GtnYnhVAit7'
+
 export default function SidebarApp() {
   const [redirects, setRedirects] = useState<Redirect[]>(defaultRedirects)
 
@@ -94,6 +96,17 @@ export default function SidebarApp() {
       </ul>
 
       <footer className="sidebar_footer">Made with care for a greener web 🌿</footer>
+
+      <a
+        className="suggest_fab"
+        href={SUGGEST_FORM_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Suggest a pair"
+        aria-label="Suggest a redirect pair"
+      >
+        <span aria-hidden="true">🌱</span> Suggest a pair
+      </a>
     </div>
   )
 }
