@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react'
 import './styles.css'
 import reactLogo from '../images/icon.png'
-import { defaultRedirects, EFFORT_LABELS, readStoredRedirects, saveRedirects, type Redirect } from '../redirects'
+import { defaultRedirects, displayHostname, EFFORT_LABELS, readStoredRedirects, saveRedirects, type Redirect } from '../redirects'
 
 const SUGGEST_FORM_URL = 'https://forms.gle/qDM3g7GtnYnhVAit7'
 
@@ -79,7 +79,7 @@ export default function SidebarApp() {
             <div className="site">
               <div className="site_header">
                 <div>
-                  <span className="site_from">{r.from}</span>
+                  <span className="site_from">{displayHostname(r.from)}</span>
                   <span className="site_to"> → {r.to}</span>
                 </div>
                 <span className={`effort_badge effort_${r.effort}`}>{EFFORT_LABELS[r.effort]}</span>

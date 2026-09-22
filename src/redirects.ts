@@ -24,20 +24,20 @@ export const EFFORT_LABELS: Record<RedirectEffort, string> = {
 }
 
 export const defaultRedirects: Redirect[] = [
-  { id: 1, from: 'google.com', to: 'ecosia.org', description: 'Search with an engine that puts its profits toward planting trees and renewable energy', enabled: true, effort: 'easy' },
-  { id: 2, from: 'booking.com', to: 'bookdifferent.com', description: 'Book hotels with eco-certified stays flagged, and half the booking revenue goes to a charity you pick', enabled: true, effort: 'easy' },
+  { id: 1, from: 'www.google.com', to: 'ecosia.org', description: 'Search with an engine that puts its profits toward planting trees and renewable energy', enabled: true, effort: 'easy' },
+  { id: 2, from: 'www.booking.com', to: 'bookdifferent.com', description: 'Book hotels with eco-certified stays flagged, and half the booking revenue goes to a charity you pick', enabled: true, effort: 'easy' },
   { id: 3, from: 'zara.com', to: 'vinted.com', description: 'Buy and sell secondhand clothes instead of buying new fast fashion', enabled: true, effort: 'easy' },
   { id: 4, from: 'shein.com', to: 'thredup.com', description: 'Thrift pre-loved clothing online instead of buying new fast fashion', enabled: true, effort: 'easy' },
   { id: 5, from: 'bestbuy.com', to: 'backmarket.com', description: 'Buy refurbished phones, laptops and gadgets instead of new, cutting e-waste and manufacturing', enabled: true, effort: 'easy' },
-  { id: 6, from: 'amazon.com', to: 'earthhero.com', description: 'Shop a curated store of sustainable everyday goods, from home to personal care', enabled: false, effort: 'medium' },
+  { id: 6, from: 'www.amazon.com', to: 'earthhero.com', description: 'Shop a curated store of sustainable everyday goods, from home to personal care', enabled: false, effort: 'medium' },
   { id: 7, from: 'airbnb.com', to: 'ecobnb.com', description: 'Book stays that meet eco-friendly criteria, from organic farmhouses to green apartments', enabled: false, effort: 'medium' },
-  { id: 8, from: 'doordash.com', to: 'toogoodtogo.com', description: 'Pick up discounted surplus food from local shops instead of ordering delivery', enabled: false, effort: 'medium' },
+  { id: 8, from: 'www.doordash.com', to: 'toogoodtogo.com', description: 'Pick up discounted surplus food from local shops instead of ordering delivery', enabled: false, effort: 'medium' },
   { id: 9, from: 'barnesandnoble.com', to: 'thriftbooks.com', description: 'Buy used books instead of new copies, usually at a lower price', enabled: false, effort: 'medium' },
-  { id: 10, from: 'bing.com', to: 'oceanhero.today', description: 'Search and fund ocean-bound plastic recovery, roughly one bottle per five searches by its own count', enabled: false, effort: 'medium' },
+  { id: 10, from: 'www.bing.com', to: 'oceanhero.today', description: 'Search and fund ocean-bound plastic recovery, roughly one bottle per five searches by its own count', enabled: false, effort: 'medium' },
   { id: 11, from: 'mail.google.com', to: 'posteo.de', description: 'Ad-free, private email run on renewable electricity, for a small monthly fee', enabled: false, effort: 'hard' },
   { id: 12, from: 'workspace.google.com', to: 'infomaniak.com', description: 'Swiss email, storage and office tools hosted in renewable-powered data centers', enabled: false, effort: 'hard' },
   { id: 13, from: 'mailchimp.com', to: 'ecosend.io', description: 'Email marketing that keeps campaigns lightweight and plants trees to offset their emissions', enabled: false, effort: 'hard' },
-  { id: 14, from: 'godaddy.com', to: 'greengeeks.com', description: 'Web hosting that matches its energy use with renewable energy credits', enabled: false, effort: 'hard' },
+  { id: 14, from: 'www.godaddy.com', to: 'greengeeks.com', description: 'Web hosting that matches its energy use with renewable energy credits', enabled: false, effort: 'hard' },
   { id: 15, from: 'analytics.google.com', to: 'withcabin.com', description: 'Privacy-first, carbon-aware website analytics', enabled: false, effort: 'hard' },
 ]
 
@@ -81,6 +81,18 @@ export function mergeRedirects(currentDefaults: Redirect[], storedRedirects: Red
       effort: defaultRedirect.effort,
     }
   })
+}
+
+// The `from` value on a redirect is what's actually matched against the
+// page's hostname, and is sometimes more specific than the bare domain
+// (e.g. 'www.google.com' rather than 'google.com') so that unrelated
+// subdomains of the same site — mail, drive, docs, aws, dasher sign-up,
+// and so on — don't get swept into a redirect meant for a different
+// product. That precision shouldn't leak into the UI: this strips a
+// leading 'www.' so every entry displays as a plain, consistent domain
+// regardless of how precisely it's matched underneath.
+export function displayHostname(from: string): string {
+  return from.replace(/^www\./i, '')
 }
 
 export function matchesHostname(hostname: string, redirectSource: string) {

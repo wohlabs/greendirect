@@ -1,7 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { defaultRedirects, mergeRedirects, resolveRedirectTarget, type Redirect } from './redirects.ts'
+import { defaultRedirects, displayHostname, mergeRedirects, resolveRedirectTarget, type Redirect } from './redirects.ts'
+
+test('display hostname strips a leading www. so the list reads consistently', () => {
+  assert.equal(displayHostname('www.google.com'), 'google.com')
+  assert.equal(displayHostname('zara.com'), 'zara.com')
+  assert.equal(displayHostname('mail.google.com'), 'mail.google.com')
+})
 
 test('redirects prefer the most specific enabled host match', () => {
   const redirects: Redirect[] = [
@@ -62,14 +68,14 @@ test('updated default descriptions sync over stale saved descriptions', () => {
 })
 
 test('removed default hosts are pruned from persisted data', () => {
-  const currentDefaults = defaultRedirects.filter((redirect) => redirect.from !== 'amazon.com')
+  const currentDefaults = defaultRedirects.filter((redirect) => redirect.from !== 'www.amazon.com')
   const storedRedirects: Redirect[] = [
     ...defaultRedirects,
-    { id: 99, from: 'amazon.com', to: 'etsy.com', description: 'Shop small', enabled: false, effort: 'medium' },
+    { id: 99, from: 'www.amazon.com', to: 'etsy.com', description: 'Shop small', enabled: false, effort: 'medium' },
   ]
 
   const merged = mergeRedirects(currentDefaults, storedRedirects)
 
-  assert.ok(!merged.some((redirect) => redirect.from === 'amazon.com'))
-  assert.ok(merged.some((redirect) => redirect.from === 'google.com'))
+  assert.ok(!merged.some((redirect) => redirect.from === 'www.amazon.com'))
+  assert.ok(merged.some((redirect) => redirect.from === 'www.google.com'))
 })
