@@ -16,9 +16,14 @@ test('redirects prefer the most specific enabled host match', () => {
     { id: 100, from: 'maps.google.com', to: 'openstreetmap.org', description: 'Maps', enabled: true, effort: 'easy' },
   ]
 
+  // Neither fixture entry has a searchMapping, so the path/query aren't
+  // carried over (see the homepage-fallback fix above) -- what this test
+  // is actually checking is that the longer 'maps.google.com' host wins
+  // over the shorter 'google.com' one, i.e. we land on openstreetmap.org
+  // rather than ecosia.org.
   assert.equal(
     resolveRedirectTarget('https://maps.google.com/maps?q=green', redirects),
-    'https://openstreetmap.org/maps?q=green'
+    'https://openstreetmap.org/'
   )
 })
 
@@ -133,14 +138,19 @@ test('amazon product search maps to the equivalent earthhero search term (redire
   )
 })
 
-test('a pair with no searchMapping still falls back to the previous path/query passthrough', () => {
+test('a pair with no searchMapping lands on the target homepage, not a copied path (regression: this used to 404)', () => {
   const redirects: Redirect[] = [
     { id: 1, from: 'mailchimp.com', to: 'ecosend.io', description: '', enabled: true, effort: 'hard' },
+    { id: 2, from: 'workspace.google.com', to: 'infomaniak.com', description: '', enabled: true, effort: 'hard' },
   ]
 
   assert.equal(
     resolveRedirectTarget('https://mailchimp.com/some/path?utm_source=x', redirects),
-    'https://ecosend.io/some/path?utm_source=x'
+    'https://ecosend.io/'
+  )
+  assert.equal(
+    resolveRedirectTarget('https://workspace.google.com/intl/en_us/gmail/', redirects),
+    'https://infomaniak.com/'
   )
 })
 

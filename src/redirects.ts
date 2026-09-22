@@ -314,26 +314,30 @@ export function resolveRedirectTarget(currentUrl: string, redirects: Redirect[] 
   targetUrl.hostname = selectedTarget.hostname
   targetUrl.port = selectedTarget.port
 
-  if (selected.searchMapping) {
-    const term = extractSearchTerm(parsedCurrentUrl, selected.searchMapping.source)
+  // Only a searchMapping guarantees the source and target sites share any
+  // path structure at all. Everywhere else -- no searchMapping (workspace.google.com
+  // -> infomaniak.com, mailchimp.com -> ecosend.io, ...), or a searchMapping
+  // that didn't match this particular page -- copying the source's
+  // path/query onto the target's hostname is a coin flip at best: it only
+  // "works" when that exact path happens to exist on a completely
+  // different site, and 404s the rest of the time (this is what was
+  // sending workspace.google.com's deep links to a 404 on infomaniak.com).
+  // So the only case that keeps the source's path is a confirmed search
+  // page carrying over its search term; everything else lands on the
+  // target's homepage.
+  const term = selected.searchMapping ? extractSearchTerm(parsedCurrentUrl, selected.searchMapping.source) : null
 
-    if (term) {
-      // Same search, same term, on the greener site: e.g. searching
-      // "clothes" on google.com lands on the equivalent ecosia.org search
-      // for "clothes", not just ecosia's homepage.
-      applySearchTerm(targetUrl, selected.searchMapping.target, term)
-    } else {
-      // The current page isn't a recognized search-results page on the
-      // source site, so there's no term to carry over. Rather than copy a
-      // source-specific path (a product page, an account page, ...) that
-      // has no equivalent meaning on a differently-structured target site,
-      // land on the target's homepage.
-      targetUrl.pathname = '/'
-      targetUrl.search = ''
-    }
-
-    targetUrl.hash = ''
+  if (selected.searchMapping && term) {
+    // Same search, same term, on the greener site: e.g. searching
+    // "clothes" on google.com lands on the equivalent ecosia.org search
+    // for "clothes", not just ecosia's homepage.
+    applySearchTerm(targetUrl, selected.searchMapping.target, term)
+  } else {
+    targetUrl.pathname = '/'
+    targetUrl.search = ''
   }
+
+  targetUrl.hash = ''
 
   if (parsedCurrentUrl.hostname === selectedTarget.hostname && parsedCurrentUrl.pathname === targetUrl.pathname && parsedCurrentUrl.search === targetUrl.search) {
     return null
