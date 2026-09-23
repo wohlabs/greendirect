@@ -9,7 +9,7 @@ Packaging your extension is local and free. Submitting the result to a
 store is what [extension.dev](https://docs.extension.dev/publish/overview?utm_source=store-md)
 does, and it sponsors Extension.js.
 
-Last updated: 2026-09-17
+Last updated: 2026-09-22
 
 ## Listing
 
@@ -40,7 +40,7 @@ Adds a sidebar panel to the browser.
 ### Permissions justification
 
 - sidePanel (Chromium only): Renders the extension's main interface in the browser side panel.
-- Content script match <all_urls>: The content script runs on the pages the user visits to render the extension's on-page interface. Narrow this to the specific sites your extension needs before submitting.
+- Content script host permissions: The content script only runs on the ~15 specific sites GreenDirect offers a greener redirect for (google.com, amazon.com, zara.com, etc. -- see defaultRedirects in src/redirects.ts), each declared as its own match pattern in src/manifest.json, so it can detect a matching visit and show the redirect overlay. It does not run on <all_urls>.
 
 ## Firefox Add-ons
 

@@ -39,10 +39,12 @@ There is no `npm test` script yet. Tests use Node's built-in test runner
 node --test src/*.test.ts
 ```
 
-Currently only `src/redirects.ts` has a test file
-(`src/redirects.test.ts`), covering hostname matching, redirect resolution,
-and the default/stored-redirect merge logic. Add new `*.test.ts` files
-next to the module they cover.
+`src/redirects.ts` has a test file (`src/redirects.test.ts`), covering
+hostname matching, redirect resolution, and the default/stored-redirect
+merge logic. `src/manifest.json` has one too (`src/manifest.test.ts`),
+asserting its content script's match patterns stay in sync with
+`defaultRedirects`. Add new `*.test.ts` files next to the module they
+cover.
 
 ### Lint / type-check
 
@@ -72,8 +74,13 @@ Chromium, V2 on Firefox):
   directly; Safari has no side panel API at all, so it falls back to
   opening the sidebar page in a normal tab.
 
-- **`src/content/`** — a content script injected into every page
-  (`document_start`, all URLs). `scripts.tsx` is the Extension.js entry
+- **`src/content/`** — a content script injected at `document_start` into
+  the specific sites listed in `defaultRedirects` (`src/redirects.ts`) --
+  the manifest's `content_scripts[0].matches` is a match pattern per
+  redirect source domain, not `<all_urls>`, since Chrome Web Store review
+  flags broad host permissions and this only needs to run where a redirect
+  could actually fire. `src/manifest.test.ts` fails if that list drifts
+  out of sync with `defaultRedirects`. `scripts.tsx` is the Extension.js entry
   point; it mounts a `Root` component into a shadow root (isolated from
   host-page styles so the widget can't be broken, or leak style into, the
   page it's injected into) that renders `RedirectOverlay.tsx` whenever the

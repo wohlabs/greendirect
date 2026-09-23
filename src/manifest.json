@@ -64,7 +64,21 @@
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "*://*.airbnb.com/*",
+        "*://*.analytics.google.com/*",
+        "*://*.barnesandnoble.com/*",
+        "*://*.bestbuy.com/*",
+        "*://*.mail.google.com/*",
+        "*://*.mailchimp.com/*",
+        "*://*.shein.com/*",
+        "*://*.workspace.google.com/*",
+        "*://*.www.amazon.com/*",
+        "*://*.www.bing.com/*",
+        "*://*.www.booking.com/*",
+        "*://*.www.doordash.com/*",
+        "*://*.www.godaddy.com/*",
+        "*://*.www.google.com/*",
+        "*://*.zara.com/*"
       ],
       "js": [
         "content/scripts.tsx"
