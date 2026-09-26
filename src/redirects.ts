@@ -379,11 +379,150 @@ export function resolveNudgeCandidate(currentUrl: string, redirects: Redirect[] 
   return selected
 }
 
-function getStorage() {
-  return (globalThis as typeof globalThis & {
-    browser?: { storage?: { local?: { get: (key: string) => Promise<Record<string, unknown>>; set: (value: Record<string, unknown>) => Promise<void> } } }
-    chrome?: { storage?: { local?: { get: (key: string, callback: (items: Record<string, unknown>) => void) => void; set: (items: Record<string, unknown>, callback?: () => void) => void } } }
-  }).browser?.storage?.local ?? (globalThis as typeof globalThis & { chrome?: { storage?: { local?: { get: (key: string, callback: (items: Record<string, unknown>) => void) => void; set: (items: Record<string, unknown>, callback?: () => void) => void } } } }).chrome?.storage?.local
+type StorageItems = Record<string, unknown>
+
+type StorageChangeEvent = {
+  addListener: (listener: () => void) => void
+  removeListener: (listener: () => void) => void
+}
+
+// The parts of the two extension namespaces this module touches. Firefox
+// exposes both `browser` (promise-based) and `chrome` (callback-based);
+// Chromium exposes `chrome` only.
+type ExtensionGlobals = {
+  browser?: {
+    runtime?: { sendMessage?: (message: unknown) => Promise<unknown> }
+    storage?: {
+      local?: {
+        get: (key: string) => Promise<StorageItems>
+        set: (items: StorageItems) => Promise<void>
+      }
+      onChanged?: StorageChangeEvent
+    }
+  }
+  chrome?: {
+    runtime?: { lastError?: { message?: string }; sendMessage?: (message: unknown) => Promise<unknown> | void }
+    storage?: {
+      local?: {
+        get: (key: string, callback: (items: StorageItems) => void) => void
+        set: (items: StorageItems, callback?: () => void) => void
+      }
+      onChanged?: StorageChangeEvent
+    }
+  }
+}
+
+type StorageBackend = {
+  get: (key: string) => Promise<StorageItems>
+  set: (items: StorageItems) => Promise<void>
+}
+
+function getExtensionGlobals(): ExtensionGlobals {
+  return globalThis as unknown as ExtensionGlobals
+}
+
+// Picks ONE namespace and speaks its calling convention. `browser.*` is
+// promise-only (its schema has no callback parameter), while `chrome.*` takes
+// a callback and -- on Firefox especially -- never hands back a promise. An
+// earlier version tried the callback form on whichever object existed and
+// fell back to the promise form when that threw, which only held together by
+// accident on Firefox.
+//
+// Returns undefined when neither namespace has storage, e.g. a Firefox build
+// whose manifest doesn't declare the "storage" permission (see the
+// `firefox:permissions` entry in manifest.json).
+function getStorage(): StorageBackend | undefined {
+  const { browser: browserApi, chrome: chromeApi } = getExtensionGlobals()
+
+  const promiseArea = browserApi?.storage?.local
+  if (promiseArea) {
+    return {
+      get: (key) => promiseArea.get(key),
+      set: (items) => promiseArea.set(items),
+    }
+  }
+
+  const callbackArea = chromeApi?.storage?.local
+  if (callbackArea) {
+    return {
+      get: (key) =>
+        new Promise<StorageItems>((resolve, reject) => {
+          callbackArea.get(key, (items) => {
+            const error = chromeApi?.runtime?.lastError
+            if (error) reject(new Error(error.message))
+            else resolve(items ?? {})
+          })
+        }),
+      set: (items) =>
+        new Promise<void>((resolve, reject) => {
+          callbackArea.set(items, () => {
+            const error = chromeApi?.runtime?.lastError
+            if (error) reject(new Error(error.message))
+            else resolve()
+          })
+        }),
+    }
+  }
+
+  return undefined
+}
+
+// Sends a one-off message to the background script and resolves with its
+// reply, or with undefined when there's no channel to it.
+//
+// `browser` is checked first on purpose. Firefox defines both namespaces, but
+// its `chrome.runtime.sendMessage(message)` -- called without a callback --
+// returns nothing rather than a promise, so the background script's reply
+// (the "is this dismissed?" answer) would be dropped and "Stay on this site"
+// would never be remembered. `browser.*` hands the reply back as a promise.
+// Chromium has no `browser`, so it falls through to `chrome`, whose
+// sendMessage returns a promise there.
+export function sendExtensionMessage(message: unknown): Promise<unknown> {
+  const { browser: browserApi, chrome: chromeApi } = getExtensionGlobals()
+
+  try {
+    if (browserApi?.runtime?.sendMessage) {
+      return Promise.resolve(browserApi.runtime.sendMessage(message))
+    }
+
+    if (chromeApi?.runtime?.sendMessage) {
+      return Promise.resolve(chromeApi.runtime.sendMessage(message))
+    }
+  } catch {
+    // sendMessage throws synchronously (rather than rejecting) when the
+    // extension context has been invalidated, e.g. the extension was
+    // reloaded while this page was still open.
+  }
+
+  // No messaging channel to the background script -- fail open so the
+  // overlay still shows rather than silently never showing again.
+  return Promise.resolve(undefined)
+}
+
+// Subscribes `listener` to changes in the shared storage area and returns
+// the matching unsubscribe function. It registers on ONE namespace only:
+// Firefox exposes both `browser` and `chrome`, each with its own onChanged
+// event, so listening on both risks running the listener twice per change
+// and is never needed.
+export function onStorageChanged(listener: () => void): () => void {
+  const { browser: browserApi, chrome: chromeApi } = getExtensionGlobals()
+  const changed = browserApi?.storage?.onChanged ?? chromeApi?.storage?.onChanged
+
+  changed?.addListener(listener)
+
+  return () => changed?.removeListener(listener)
+}
+
+// Order-insensitive JSON, so two lists that differ only in key order (which
+// says nothing about the user's settings) still compare equal.
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, item: unknown) => {
+    if (item === null || typeof item !== 'object' || Array.isArray(item)) return item
+
+    return Object.fromEntries(
+      Object.entries(item as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    )
+  })
 }
 
 export async function readStoredRedirects(): Promise<Redirect[]> {
@@ -391,27 +530,33 @@ export async function readStoredRedirects(): Promise<Redirect[]> {
 
   if (!storage) return defaultRedirects
 
-  const value = await new Promise<Record<string, unknown>>((resolve, reject) => {
-    try {
-      storage.get(REDIRECT_STORAGE_KEY, (items: Record<string, unknown>) => resolve(items ?? {}))
-    } catch (error) {
-      reject(error)
-    }
-  }).catch(() => {
-    // browser.storage.local.get is Promise-based in Firefox and extension polyfills.
-    return (storage as typeof storage & { get: (key: string) => Promise<Record<string, unknown>> }).get(REDIRECT_STORAGE_KEY).catch(() => ({} as Record<string, unknown>))
-  }) as Record<string, unknown>
-
-  const redirects = value[REDIRECT_STORAGE_KEY] as unknown
-
-  if (Array.isArray(redirects) && redirects.length > 0) {
-    const merged = mergeRedirects(defaultRedirects, redirects as Redirect[])
-    await saveRedirects(merged)
-    return merged
+  let stored: unknown
+  try {
+    stored = (await storage.get(REDIRECT_STORAGE_KEY))?.[REDIRECT_STORAGE_KEY]
+  } catch {
+    // Couldn't read. Serve the shipped defaults for this call, but write
+    // nothing back: saving them now could overwrite the user's real settings
+    // with defaults just because of a transient read failure.
+    return defaultRedirects
   }
 
-  const merged = mergeRedirects(defaultRedirects, defaultRedirects)
-  await saveRedirects(merged)
+  const hasStored = Array.isArray(stored) && stored.length > 0
+  const merged = mergeRedirects(defaultRedirects, hasStored ? (stored as Redirect[]) : defaultRedirects)
+
+  // Only write back when the merge actually changed something (first run, or
+  // a shipped-defaults update reaching an existing user). This matters
+  // because both the content script and the sidebar re-read on every
+  // storage.onChanged, and Firefox fires onChanged for every write even when
+  // the value is identical (Chromium drops no-op writes). Writing on every
+  // read therefore made each read trigger another one, forever.
+  if (!hasStored || canonicalJson(stored) !== canonicalJson(merged)) {
+    try {
+      await saveRedirects(merged)
+    } catch {
+      // Best effort: the merged list is still the right answer for this call.
+    }
+  }
+
   return merged
 }
 
@@ -420,17 +565,5 @@ export async function saveRedirects(redirects: Redirect[]) {
 
   if (!storage) return
 
-  const payload = {[REDIRECT_STORAGE_KEY]: mergeRedirects(defaultRedirects, redirects)}
-
-  try {
-    await new Promise<void>((resolve, reject) => {
-      try {
-        storage.set(payload, () => resolve())
-      } catch (error) {
-        reject(error)
-      }
-    })
-  } catch {
-    await (storage as typeof storage & { set: (value: Record<string, unknown>) => Promise<void> }).set(payload)
-  }
+  await storage.set({ [REDIRECT_STORAGE_KEY]: mergeRedirects(defaultRedirects, redirects) })
 }

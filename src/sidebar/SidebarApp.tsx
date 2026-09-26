@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react'
 import './styles.css'
 import reactLogo from '../images/icon.png'
-import { defaultRedirects, displayHostname, EFFORT_LABELS, readStoredRedirects, saveRedirects, type Redirect } from '../redirects'
+import { defaultRedirects, displayHostname, EFFORT_LABELS, onStorageChanged, readStoredRedirects, saveRedirects, type Redirect } from '../redirects'
 
 const SUGGEST_FORM_URL = 'https://forms.gle/qDM3g7GtnYnhVAit7'
 
@@ -15,27 +15,7 @@ export default function SidebarApp() {
 
     syncRedirects()
 
-    const onStorageChange = () => {
-      syncRedirects()
-    }
-
-    if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
-      chrome.storage.onChanged.addListener(onStorageChange)
-    }
-
-    if (typeof browser !== 'undefined' && browser.storage?.onChanged) {
-      browser.storage.onChanged.addListener(onStorageChange)
-    }
-
-    return () => {
-      if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
-        chrome.storage.onChanged.removeListener(onStorageChange)
-      }
-
-      if (typeof browser !== 'undefined' && browser.storage?.onChanged) {
-        browser.storage.onChanged.removeListener(onStorageChange)
-      }
-    }
+    return onStorageChanged(syncRedirects)
   }, [])
 
   async function persist(nextRedirects: Redirect[]) {

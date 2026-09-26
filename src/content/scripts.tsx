@@ -6,6 +6,8 @@ import './styles.css'
 import {
   readStoredRedirects,
   saveRedirects,
+  onStorageChanged,
+  sendExtensionMessage,
   resolveRedirectTarget,
   resolveNudgeCandidate,
   REDIRECT_OVERLAY_DISMISSAL_QUERY_MESSAGE,
@@ -16,26 +18,6 @@ import {
 } from '../redirects'
 
 console.log('[From the page context] Hello from content_scripts!')
-
-function addStorageChangeListener(listener: () => void) {
-  if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
-    chrome.storage.onChanged.addListener(listener)
-  }
-
-  if (typeof browser !== 'undefined' && browser.storage?.onChanged) {
-    browser.storage.onChanged.addListener(listener)
-  }
-}
-
-function removeStorageChangeListener(listener: () => void) {
-  if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
-    chrome.storage.onChanged.removeListener(listener)
-  }
-
-  if (typeof browser !== 'undefined' && browser.storage?.onChanged) {
-    browser.storage.onChanged.removeListener(listener)
-  }
-}
 
 // The overlay's "Stay on this site" choice needs to survive every ordinary
 // navigation within the same domain in this tab (the content script
@@ -68,26 +50,6 @@ function queryNudgeDismissed(hostname: string): Promise<boolean> {
 
 function notifyNudgeDismissed(hostname: string) {
   sendExtensionMessage({type: NUDGE_DISMISSAL_SET_MESSAGE, hostname}).catch(() => {})
-}
-
-function sendExtensionMessage(message: unknown): Promise<unknown> {
-  try {
-    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-      return Promise.resolve(chrome.runtime.sendMessage(message))
-    }
-
-    if (typeof browser !== 'undefined' && browser.runtime?.sendMessage) {
-      return Promise.resolve(browser.runtime.sendMessage(message))
-    }
-  } catch {
-    // chrome.runtime.sendMessage throws synchronously (rather than
-    // rejecting) when the extension context has been invalidated, e.g. the
-    // extension was reloaded while this page was still open.
-  }
-
-  // No messaging channel to the background script -- fail open so the
-  // overlay still shows rather than silently never showing again.
-  return Promise.resolve(undefined)
 }
 
 /**
@@ -141,12 +103,9 @@ function Root() {
   useEffect(() => {
     void checkRedirect()
 
-    const onStorageChange = () => {
+    return onStorageChanged(() => {
       void checkRedirect()
-    }
-
-    addStorageChangeListener(onStorageChange)
-    return () => removeStorageChangeListener(onStorageChange)
+    })
   }, [checkRedirect])
 
   const handleStay = useCallback(() => {

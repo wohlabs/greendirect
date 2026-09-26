@@ -157,9 +157,21 @@ Chromium, V2 on Firefox):
     removed entry) propagates to existing users without clobbering a toggle
     they've already flipped.
   - `readStoredRedirects` / `saveRedirects` — thin wrappers over
-    `chrome.storage.local` / `browser.storage.local` (both callback- and
-    promise-based storage APIs are handled, since Firefox differs from
-    Chromium here) under the shared key `greendirect.redirects`.
+    `browser.storage.local` (promise-based, used whenever `browser` exists,
+    i.e. Firefox) or `chrome.storage.local` (callback-based, Chromium) under
+    the shared key `greendirect.redirects`. Each browser gets exactly one
+    calling convention -- never a callback on `browser.*`. `readStoredRedirects`
+    only writes back when merging with the defaults actually changed
+    something: Firefox fires `storage.onChanged` for every write, even an
+    identical one, and the content script and sidebar both re-read on every
+    change, so an unconditional write-on-read is a self-feeding loop there
+    (Chromium drops no-op writes and hides it).
+  - `onStorageChanged` / `sendExtensionMessage` — the same one-namespace-only
+    treatment for `storage.onChanged` and `runtime.sendMessage`. Both prefer
+    `browser.*` when present: on Firefox, `chrome.runtime.sendMessage(msg)`
+    without a callback returns nothing (no promise), which would drop the
+    background script's reply. Nothing outside `redirects.ts` should touch
+    `chrome.storage` / `browser.storage` directly.
 
 Data flow: the content script and sidebar both call into `redirects.ts` to
 read/write the same `chrome.storage.local` entry, so a toggle in the
@@ -171,6 +183,21 @@ content script, and sidebar beyond the "open sidebar" request.
 
 - `extension.config.js` configures a persistent browser profile per target
   browser (`dist/extension-profile-<browser>`) used by `npm run dev`.
+- **Firefox permissions are declared separately.** `chromium:permissions`
+  in `src/manifest.json` only applies to Chromium builds; Firefox needs its
+  own `firefox:permissions` (currently just `storage`). This is easy to miss
+  because `npm run dev` injects `tabs` and `storage` into every Firefox build
+  (Extension.js' dev-only `DEV_INJECTED_PERMISSIONS_MV2`), so everything
+  works in dev while a packaged Firefox build has no `browser.storage` and
+  silently loses every saved setting. `src/manifest.test.ts` guards
+  `storage`. When changing permissions, verify with a real `npm run
+  build:firefox` and check `dist/firefox/manifest.json`, not a dev run.
+  Firefox deliberately doesn't get `tabs`: the code only reads `sender.tab.id`
+  and `tabs.onRemoved`, neither of which needs it, and it adds an install
+  warning.
+- `src/storage.test.ts` simulates Firefox's storage semantics (promise-only
+  `browser.*`, `onChanged` on every write) and Chromium's; run it with the
+  other tests when touching anything in the storage/messaging helpers.
 - `STORE.md` holds store-listing metadata (Chrome Web Store / Firefox
   Add-ons / Edge Add-ons) — keep it in sync when permissions or behavior
   change, since store submissions ask for this at submission time.

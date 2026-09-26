@@ -28,3 +28,14 @@ test('content script matches cover exactly the redirect source domains, and noth
 
   assert.deepEqual([...matches].sort(), expectedPatterns)
 })
+
+// `chromium:permissions` only reaches Chromium builds. Firefox's manifest
+// needs its own declaration, and forgetting it is easy to miss: the dev
+// server injects "storage" (and "tabs") into every Firefox build, so
+// everything works in `npm run dev` while a packaged Firefox build has no
+// browser.storage at all and silently loses every saved setting.
+test('the Firefox build declares the storage permission itself, since dev builds inject it but packaged ones do not', () => {
+  const firefoxPermissions: string[] = manifest['firefox:permissions'] ?? []
+
+  assert.ok(firefoxPermissions.includes('storage'), 'firefox:permissions must include "storage"')
+})

@@ -55,6 +55,9 @@
     "storage",
     "tabs"
   ],
+  "firefox:permissions": [
+    "storage"
+  ],
   "background": {
     "chromium:service_worker": "background.ts",
     "firefox:scripts": [
