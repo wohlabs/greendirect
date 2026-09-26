@@ -2,7 +2,7 @@
 
 # greendirect
 
-> Adds a sidebar panel to the browser with a simple React page.
+> Redirect popular sites to greener alternatives
 
 ## Commands
 
