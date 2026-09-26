@@ -1,7 +1,18 @@
 import React, {useEffect, useState} from 'react'
 import './styles.css'
 import reactLogo from '../images/icon.png'
-import { defaultRedirects, displayHostname, EFFORT_LABELS, onStorageChanged, readStoredRedirects, saveRedirects, type Redirect } from '../redirects'
+import {
+  defaultRedirects,
+  displayHostname,
+  EFFORT_LABELS,
+  MODE_LABELS,
+  REDIRECT_MODES,
+  onStorageChanged,
+  readStoredRedirects,
+  saveRedirects,
+  type Redirect,
+  type RedirectMode,
+} from '../redirects'
 
 const SUGGEST_FORM_URL = 'https://forms.gle/qDM3g7GtnYnhVAit7'
 
@@ -23,25 +34,20 @@ export default function SidebarApp() {
     await saveRedirects(nextRedirects)
   }
 
-  // Flipping a switch here (individually, or via Enable All/Disable All)
-  // is what marks a pair `userConfigured`, so it also doubles as the "the
-  // user answered" signal the content script's nudge banner checks (see
-  // resolveNudgeCandidate in ../redirects and content/scripts.tsx) -- a
-  // pair touched here should never get nudged on some other site later.
-  function toggle(id: number) {
-    const nextRedirects = redirects.map(item => item.id === id ? {...item, enabled: !item.enabled, userConfigured: true} : item)
+  // Any choice made here (one flower, or a "Set all" button) marks the pair
+  // `userConfigured` -- see the field's doc comment on Redirect in
+  // ../redirects.
+  function setMode(id: number, mode: RedirectMode) {
+    const nextRedirects = redirects.map(item => item.id === id ? {...item, mode, userConfigured: true} : item)
     void persist(nextRedirects)
   }
 
-  function enableAll() {
-    const nextRedirects = redirects.map(item => ({...item, enabled: true, userConfigured: true}))
+  function setAll(mode: RedirectMode) {
+    const nextRedirects = redirects.map(item => ({...item, mode, userConfigured: true}))
     void persist(nextRedirects)
   }
 
-  function disableAll() {
-    const nextRedirects = redirects.map(item => ({...item, enabled: false, userConfigured: true}))
-    void persist(nextRedirects)
-  }
+  const allInMode = (mode: RedirectMode) => redirects.every(item => item.mode === mode)
 
   return (
     <div className="sidebar_app">
@@ -53,14 +59,31 @@ export default function SidebarApp() {
         </div>
       </header>
 
-      <section className="controls">
-        <button className="btn" onClick={enableAll}>Enable All</button>
-        <button className="btn btn--ghost" onClick={disableAll}>Disable All</button>
+      <section className="controls" aria-label="Set every pair at once">
+        <span className="controls_label">Set all</span>
+        <div className="segmented">
+          {REDIRECT_MODES.map(mode => (
+            <button
+              key={mode}
+              type="button"
+              className="segmented_btn"
+              aria-pressed={allInMode(mode)}
+              onClick={() => setAll(mode)}
+            >
+              {MODE_LABELS[mode]}
+            </button>
+          ))}
+        </div>
       </section>
+
+      <p className="mode_legend">
+        <strong>Suggest</strong> shows a small banner on the site. <strong>Redirect</strong> takes you to the
+        alternative after a 5-second countdown.
+      </p>
 
       <ul className="redirect_list">
         {redirects.map(r => (
-          <li key={r.id} className={`redirect_card ${r.enabled ? 'enabled' : 'disabled'}`}>
+          <li key={r.id} className={`redirect_card mode_${r.mode}`}>
             <div className="site">
               <div className="site_header">
                 <div>
@@ -72,10 +95,27 @@ export default function SidebarApp() {
               <div className="site_desc">{r.description}</div>
             </div>
 
-            <label className="switch flower">
-              <input type="checkbox" checked={r.enabled} onChange={() => toggle(r.id)} />
-              <span className="slider" />
-            </label>
+            <div className="mode_control">
+              {/* Three radios laid over the track as invisible thirds: clicking
+                  a spot on the track picks that stage, and arrow keys move
+                  between stages like any radio group. */}
+              <div className="flower3" role="radiogroup" aria-label={`What to do on ${displayHostname(r.from)}`}>
+                {REDIRECT_MODES.map(mode => (
+                  <input
+                    key={mode}
+                    type="radio"
+                    name={`mode-${r.id}`}
+                    value={mode}
+                    checked={r.mode === mode}
+                    onChange={() => setMode(r.id, mode)}
+                    aria-label={MODE_LABELS[mode]}
+                    title={MODE_LABELS[mode]}
+                  />
+                ))}
+                <span className="slider" aria-hidden="true" />
+              </div>
+              <span className="mode_label">{MODE_LABELS[r.mode]}</span>
+            </div>
           </li>
         ))}
       </ul>

@@ -96,8 +96,8 @@ function useZoomStableScale(elementRef: React.RefObject<HTMLElement | null>) {
 }
 
 /**
- * Shown in place of an instant navigation whenever a matching redirect is
- * enabled: gives the page 5 seconds on screen (with a countdown the user can
+ * Shown in place of an instant navigation whenever the matching pair is in
+ * 'redirect' mode: gives the page 5 seconds on screen (with a countdown the user can
  * watch tick down) before sending them to the greener alternative, and lets
  * them cancel ("Stay on this site") or skip ahead ("Redirect now") at any
  * point during the countdown.

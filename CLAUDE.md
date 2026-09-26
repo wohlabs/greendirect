@@ -7,10 +7,11 @@ Guidance for Claude Code (and other agents) working in this repository.
 GreenDirect is a cross-browser extension (Chrome, Firefox, Edge) built with
 [Extension.js](https://extension.js.org) and React 18 + TypeScript. It adds a
 side panel where users can see a list of popular websites paired with greener
-alternatives (e.g. `google.com` → `ecosia.org`), toggle each redirect on or
-off individually, and use "Enable All" / "Disable All" shortcuts. When a
-redirect is enabled, visiting the matching site sends the user straight to
-its alternative.
+alternatives (e.g. `google.com` → `ecosia.org`) and set each pair to one of
+three modes with a three-stage flower toggle (or all at once with "Set all"):
+**Off** does nothing; **Suggest** (the default for every pair) shows a small
+suggestion banner on every visit to the site; **Redirect** sends the user to
+the alternative after a 5-second countdown they can cancel.
 
 ## Commands
 
@@ -84,7 +85,7 @@ Chromium, V2 on Firefox):
   point; it mounts a `Root` component into a shadow root (isolated from
   host-page styles so the widget can't be broken, or leak style into, the
   page it's injected into) that renders `RedirectOverlay.tsx` whenever the
-  current page matches an enabled redirect. `Root` reads the stored
+  current page matches a pair in `'redirect'` mode. `Root` reads the stored
   redirect list on load and re-checks whenever storage changes;
   when a match is found it does *not* navigate immediately. Instead the
   overlay appears on top of the page for 5 seconds ("Redirecting to
@@ -93,51 +94,67 @@ Chromium, V2 on Firefox):
   (`window.location.assign`). The overlay has two buttons: "Redirect now"
   jumps ahead immediately, and "Stay on this site" cancels the redirect
   and dismisses the overlay for the rest of that page's lifetime (until
-  the next navigation re-injects the content script). A page with no
-  matching, or no enabled, redirect never shows the overlay and behaves
-  exactly as if the feature weren't there.
+  the next navigation re-injects the content script). A page whose
+  matching pair is `'off'` (or with no matching pair at all) shows nothing
+  and behaves exactly as if the feature weren't there.
 
-  When there's no active redirect, `Root` also renders `NudgeBanner.tsx`
-  whenever `resolveNudgeCandidate` (see `src/redirects.ts`) finds a pair
-  for the current hostname that's off by default and the user has never
-  explicitly decided on (`Redirect.userConfigured` is falsy). Unlike the
-  overlay, the banner is small, bottom-right, and non-blocking, and it
-  never navigates anywhere itself -- it just asks "There's a greener
-  alternative to `<site>`: `<alternative>`. Want to turn it on?" with
-  three options: "Yes" (enables the redirect -- which then hands off to
-  the normal RedirectOverlay countdown on the next storage-change check,
-  exactly as if the user had flipped the switch in the sidebar), "No"
-  (leaves it off), and "Remind me later". Both "Yes" and "No" set
-  `userConfigured: true` on that pair so it's never nudged again anywhere.
-  "Remind me later" (and the banner's × button) don't touch storage; they
-  just dismiss the banner for the rest of the tab's visit to that domain,
-  reappearing on a new tab or after navigating away and back -- the exact
-  same per-tab dismissal mechanism as "Stay on this site" above, tracked
-  separately in `background.ts` (`REDIRECT_OVERLAY_DISMISSAL_*` vs.
-  `NUDGE_DISMISSAL_*` messages) so answering one never affects the other.
+  When there's no active redirect, `Root` also renders `SuggestionBanner.tsx`
+  whenever `resolveSuggestion` (see `src/redirects.ts`) finds that the most
+  specific pair for the current hostname is in `'suggest'` mode. Unlike the
+  overlay, the banner is small, bottom-right, and non-blocking, and it never
+  navigates anywhere on its own. It reads "Greener alternative to `<site>`:
+  `<alternative>`" plus the pair's description, with:
+  - "Go to `<alternative>`" -- a one-off trip, carrying the search term over
+    exactly like a redirect would (both go through `resolveTargetUrl`). No
+    setting changes.
+  - "Always redirect" -- sets the pair to `'redirect'`, which hands off to
+    the normal RedirectOverlay countdown on the next storage-change check,
+    exactly as if the user had picked Redirect in the sidebar.
+  - "Stop suggesting" -- sets the pair to `'off'`.
+  - × -- doesn't touch storage; it hides the banner for the rest of the
+    tab's visit to that domain, reappearing on a new tab or after navigating
+    away and back -- the exact same per-tab dismissal mechanism as "Stay on
+    this site" above, tracked separately in `background.ts`
+    (`REDIRECT_OVERLAY_DISMISSAL_*` vs. `SUGGESTION_DISMISSAL_*` messages) so
+    one never affects the other.
+  "Always redirect" and "Stop suggesting" deliberately get the same visual
+  weight: moving a pair down should be exactly as easy as moving it up.
 
 - **`src/sidebar/`** — the side panel UI. `SidebarApp.tsx` is a React
-  component that loads the current redirect list, lets the user toggle
-  redirects individually or all at once, and persists changes back to
-  storage; `scripts.tsx` mounts it into `index.html`.
+  component that loads the current redirect list, lets the user set each
+  pair's mode (or all of them with "Set all"), and persists changes back to
+  storage; `scripts.tsx` mounts it into `index.html`. Each pair's mode is a
+  three-stage flower toggle (`.flower3` in `styles.css`): three radio
+  inputs laid over the track as invisible thirds (so a click picks the
+  stage under the pointer and arrow keys move between stages), with the
+  flower drawn by `.slider:before` from a single `--flower-bloom` number --
+  0 = closed bud (Off), 0.5 = half-open (Suggest), 1 = full bloom
+  (Redirect).
 
 - **`src/redirects.ts`** — the shared domain module all three surfaces
   depend on, and the natural place to look first when changing redirect
-  behavior. It defines the `Redirect` type -- including `userConfigured`,
-  which is false/undefined until the user explicitly decides that pair's
-  `enabled` value (a sidebar toggle, Enable All/Disable All, or a "Yes"/"No"
-  answer on the nudge banner) and is what lets the nudge banner tell
-  "off by default, never touched" apart from "off because the user turned
-  it off" -- and the built-in `defaultRedirects` list (each tagged with an
-  `effort` of `easy` / `medium` / `hard` — only `easy` redirects are enabled
-  out of the box), plus:
-  - `resolveNudgeCandidate` — matches the current URL's hostname against
-    *all* redirects (including subdomains) the same way `resolveRedirectTarget`
-    does, but returns the longest match only when it's off and
-    `userConfigured` is falsy -- the pair `NudgeBanner.tsx` should offer to
-    turn on, or `null` if there's nothing to nudge about on this page.
+  behavior. It defines `RedirectMode` (`'off' | 'suggest' | 'redirect'`), the
+  `Redirect` type -- including `mode` and `userConfigured`, which is
+  false/undefined until the user explicitly chooses that pair's mode (the
+  sidebar flower or "Set all", or "Always redirect"/"Stop suggesting" on the
+  banner) -- and the built-in `defaultRedirects` list (each tagged with an
+  `effort` of `easy` / `medium` / `hard`; every pair ships in `'suggest'`
+  mode, so nothing ever redirects until the user picks Redirect), plus:
+  - `normalizeMode` — reads a stored pair's mode. Versions before modes
+    existed saved an `enabled` boolean; it converts those without changing
+    what anyone sees: on → `'redirect'`, off and never touched → `'suggest'`
+    (those pairs were already showing the old "want to turn it on?" banner
+    on every visit), off by the user's choice → `'off'`.
+  - `resolveSuggestion` — matches the current URL's hostname against *all*
+    redirects (including subdomains), takes the longest match, and returns
+    it (with the URL "Go to ..." should open) only when that pair is in
+    `'suggest'` mode, or `null` otherwise.
+  - `resolveTargetUrl` — where visiting the current URL should send the
+    user for one specific pair; shared by the overlay and the banner so both
+    land in the same place.
   - `resolveRedirectTarget` — matches the current URL's hostname against
-    enabled redirects (including subdomains) and returns the longest match.
+    pairs in `'redirect'` mode (including subdomains) and returns the
+    longest match's `resolveTargetUrl`.
     When that redirect has a `searchMapping` (search engines and a few
     product-search sites — see the `defaultRedirects` entries with a
     `searchMapping` field, and the comments on the `SearchMapping` /
@@ -154,8 +171,8 @@ Chromium, V2 on Firefox):
     structured target site).
   - `mergeRedirects` — reconciles the shipped defaults with what's saved in
     storage, so editing `defaultRedirects` (new description, changed target,
-    removed entry) propagates to existing users without clobbering a toggle
-    they've already flipped.
+    removed entry) propagates to existing users without clobbering a mode
+    they've already chosen.
   - `readStoredRedirects` / `saveRedirects` — thin wrappers over
     `browser.storage.local` (promise-based, used whenever `browser` exists,
     i.e. Firefox) or `chrome.storage.local` (callback-based, Chromium) under
@@ -174,7 +191,7 @@ Chromium, V2 on Firefox):
     `chrome.storage` / `browser.storage` directly.
 
 Data flow: the content script and sidebar both call into `redirects.ts` to
-read/write the same `chrome.storage.local` entry, so a toggle in the
+read/write the same `chrome.storage.local` entry, so a mode change in the
 sidebar takes effect on the next navigation via the content script's
 `storage.onChanged` listener — there is no messaging between background,
 content script, and sidebar beyond the "open sidebar" request.

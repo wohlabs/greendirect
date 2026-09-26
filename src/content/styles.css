@@ -230,16 +230,15 @@
   }
 }
 
-/* ---- Nudge banner ------------------------------------------------------
- * Shown bottom-right (see .content_script above) when the current site has
- * an off-by-default, never-configured greener alternative -- see
- * resolveNudgeCandidate in redirects.ts and NudgeBanner.tsx. Unlike
- * .redirect_overlay this has no backdrop and doesn't take over the page: it
- * sits alongside whatever the user is doing until they answer it or
- * navigate away.
+/* ---- Suggestion banner -------------------------------------------------
+ * Shown bottom-right (see .content_script above) on every visit to a site
+ * whose pair is in 'suggest' mode -- see resolveSuggestion in redirects.ts
+ * and SuggestionBanner.tsx. Unlike .redirect_overlay this has no backdrop
+ * and doesn't take over the page: it sits alongside whatever the user is
+ * doing until they act on it, hide it, or navigate away.
  */
 
-.nudge_banner {
+.suggestion_banner {
   position: fixed;
   right: 1em;
   bottom: 1em;
@@ -259,16 +258,16 @@
     Arial, 'Noto Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  animation: nudge_banner_in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: suggestion_banner_in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.nudge_banner_icon {
+.suggestion_banner_icon {
   flex-shrink: 0;
   font-size: 1.4em;
   line-height: 1.3;
 }
 
-.nudge_banner_body {
+.suggestion_banner_body {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -276,24 +275,24 @@
   gap: 0.5em;
 }
 
-.nudge_banner_text {
+.suggestion_banner_text {
   margin: 0;
   font-size: 0.85em;
   line-height: 1.45;
 }
 
-.nudge_banner_text strong {
+.suggestion_banner_text strong {
   color: #6fd68a;
 }
 
-.nudge_banner_desc {
+.suggestion_banner_desc {
   margin: 0;
   font-size: 0.78em;
   line-height: 1.4;
   color: rgba(231, 236, 233, 0.7);
 }
 
-.nudge_banner_actions {
+.suggestion_banner_actions {
   display: flex;
   align-items: center;
   gap: 0.5em;
@@ -301,7 +300,7 @@
   flex-wrap: wrap;
 }
 
-.nudge_banner_btn {
+.suggestion_banner_btn {
   appearance: none;
   border: none;
   outline: none;
@@ -313,42 +312,46 @@
   transition: transform 0.15s ease, background 0.15s ease;
 }
 
-.nudge_banner_btn:hover {
+.suggestion_banner_btn:hover {
   transform: translateY(-1px);
 }
 
-.nudge_banner_btn_primary {
+.suggestion_banner_btn_primary {
   background: #22c55e;
   color: #06210f;
 }
 
-.nudge_banner_btn_primary:hover {
+.suggestion_banner_btn_primary:hover {
   background: #34d876;
 }
 
-.nudge_banner_btn_ghost {
+.suggestion_banner_btn_ghost {
   background: rgba(255, 255, 255, 0.08);
   color: var(--sidebar-text, #e7ece9);
 }
 
-.nudge_banner_btn_ghost:hover {
+.suggestion_banner_btn_ghost:hover {
   background: rgba(255, 255, 255, 0.14);
 }
 
-.nudge_banner_btn_text {
-  background: transparent;
-  color: rgba(231, 236, 233, 0.65);
-  padding: 0.45em 0.4em;
-  font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+/* "Go to <alternative>" sits on its own row above the two setting changes,
+   which share the second row at equal weight. */
+.suggestion_banner_go {
+  align-self: flex-start;
+  margin-top: 0.15em;
 }
 
-.nudge_banner_btn_text:hover {
-  color: var(--sidebar-text, #e7ece9);
+.suggestion_banner_actions .suggestion_banner_btn {
+  flex: 1;
 }
 
-.nudge_banner_close {
+.suggestion_banner_btn:focus-visible,
+.suggestion_banner_close:focus-visible {
+  outline: 2px solid #6fd68a;
+  outline-offset: 2px;
+}
+
+.suggestion_banner_close {
   flex-shrink: 0;
   appearance: none;
   border: none;
@@ -363,12 +366,12 @@
   transition: color 0.15s ease, background 0.15s ease;
 }
 
-.nudge_banner_close:hover {
+.suggestion_banner_close:hover {
   color: var(--sidebar-text, #e7ece9);
   background: rgba(255, 255, 255, 0.08);
 }
 
-@keyframes nudge_banner_in {
+@keyframes suggestion_banner_in {
   from {
     opacity: 0;
     transform: translateY(12px);
@@ -380,13 +383,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nudge_banner {
+  .suggestion_banner {
     animation: none;
   }
 }
 
 @media (max-width: 420px) {
-  .nudge_banner {
+  .suggestion_banner {
     right: 0.75em;
     bottom: 0.75em;
     left: 0.75em;

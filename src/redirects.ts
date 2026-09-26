@@ -1,5 +1,24 @@
 export type RedirectEffort = 'easy' | 'medium' | 'hard'
 
+// What GreenDirect does when the user visits a pair's `from` site:
+// - 'off': nothing at all.
+// - 'suggest': shows the small bottom-right suggestion banner on every visit
+//   (content/SuggestionBanner.tsx). It never navigates on its own; the user
+//   can go to the alternative once, switch the pair to 'redirect', or switch
+//   it to 'off' from the banner itself.
+// - 'redirect': shows the 5-second RedirectOverlay countdown, then sends the
+//   user to the alternative.
+// The sidebar shows these as the three stops of the flower toggle: closed
+// bud, half-open, full bloom.
+export const REDIRECT_MODES = ['off', 'suggest', 'redirect'] as const
+export type RedirectMode = (typeof REDIRECT_MODES)[number]
+
+export const MODE_LABELS: Record<RedirectMode, string> = {
+  off: 'Off',
+  suggest: 'Suggest',
+  redirect: 'Redirect',
+}
+
 // Describes one endpoint (source or target) of a search-query equivalence:
 // either a classic "?param=term" search page, or a site that encodes the
 // term directly in the path (e.g. SHEIN's /pdsearch/<term>/, no query
@@ -11,7 +30,7 @@ export type SearchMappingLocation =
 
 // Lets a redirect carry over the actual search term instead of just
 // swapping hostnames: visiting google.com/search?q=clothes with the
-// google -> ecosia redirect enabled lands on ecosia.org/search?q=clothes,
+// google -> ecosia redirect on lands on ecosia.org/search?q=clothes,
 // not just ecosia.org's homepage. Only defined for pairs where both sites
 // were confirmed to expose a real search URL in this shape -- see the
 // entries in defaultRedirects below for which pairs that covers. When a
@@ -30,20 +49,22 @@ export type Redirect = {
   from: string
   to: string
   description?: string
-  enabled: boolean
+  mode: RedirectMode
   effort: RedirectEffort
   searchMapping?: SearchMapping
-  // Whether the user has explicitly decided this pair's `enabled` value --
-  // by flipping its switch (or an Enable All/Disable All) in the sidebar,
-  // or by answering "Yes"/"No" on the nudge banner (see
-  // resolveNudgeCandidate below). false/undefined means `enabled` is still
-  // just whatever defaultRedirects shipped with. This is what lets the
-  // nudge banner tell "off by default, never touched" apart from "off
-  // because the user turned it off" -- merely being present in storage
-  // doesn't: every redirect gets persisted on first load regardless of
-  // whether the user has ever looked at it.
+  // Whether the user has explicitly chosen this pair's `mode` -- with its
+  // flower toggle (or a "Set all" button) in the sidebar, or with "Always
+  // redirect"/"Stop suggesting" on the suggestion banner. false/undefined
+  // means `mode` is still just whatever defaultRedirects shipped with.
+  // Merely being present in storage doesn't count: every redirect gets
+  // persisted on first load whether or not the user has ever looked at it.
   userConfigured?: boolean
 }
+
+// A redirect as it may come back from storage. Versions before modes
+// existed saved an `enabled` boolean instead of `mode`; normalizeMode below
+// converts those.
+export type StoredRedirect = Omit<Redirect, 'mode'> & { mode?: unknown; enabled?: unknown }
 
 export const REDIRECT_STORAGE_KEY = 'greendirect.redirects'
 
@@ -53,15 +74,14 @@ export const REDIRECT_STORAGE_KEY = 'greendirect.redirects'
 export const REDIRECT_OVERLAY_DISMISSAL_QUERY_MESSAGE = 'greendirect.redirectOverlay.queryDismissed'
 export const REDIRECT_OVERLAY_DISMISSAL_SET_MESSAGE = 'greendirect.redirectOverlay.setDismissed'
 
-// Same idea, for the "greener alternative available" nudge banner (see
-// resolveNudgeCandidate below and content/NudgeBanner.tsx): "Remind me
-// later" dismisses it the same way "Stay on this site" dismisses the
-// redirect overlay above -- for the rest of this tab's visit to the
-// current domain, re-arming on a new tab or after navigating away and
-// back. Tracked separately from the redirect-overlay dismissal so
-// answering one doesn't affect the other.
-export const NUDGE_DISMISSAL_QUERY_MESSAGE = 'greendirect.nudgeBanner.queryDismissed'
-export const NUDGE_DISMISSAL_SET_MESSAGE = 'greendirect.nudgeBanner.setDismissed'
+// Same idea, for the suggestion banner (see resolveSuggestion below and
+// content/SuggestionBanner.tsx): its × button hides it the same way "Stay on
+// this site" dismisses the redirect overlay above -- for the rest of this
+// tab's visit to the current domain, re-arming on a new tab or after
+// navigating away and back. Tracked separately from the redirect-overlay
+// dismissal so answering one doesn't affect the other.
+export const SUGGESTION_DISMISSAL_QUERY_MESSAGE = 'greendirect.suggestionBanner.queryDismissed'
+export const SUGGESTION_DISMISSAL_SET_MESSAGE = 'greendirect.suggestionBanner.setDismissed'
 
 export const EFFORT_LABELS: Record<RedirectEffort, string> = {
   easy: 'Easy switch',
@@ -69,13 +89,15 @@ export const EFFORT_LABELS: Record<RedirectEffort, string> = {
   hard: 'High effort',
 }
 
+// Every pair ships on 'suggest': nothing ever navigates away from a site
+// until the user explicitly picks 'redirect' for it.
 export const defaultRedirects: Redirect[] = [
   {
     id: 1,
     from: 'www.google.com',
     to: 'ecosia.org',
     description: 'Search with an engine that puts its profits toward planting trees and renewable energy',
-    enabled: false,
+    mode: 'suggest',
     effort: 'easy',
     // Confirmed: both google.com and ecosia.org serve search results at
     // /search?q=<term>.
@@ -84,13 +106,13 @@ export const defaultRedirects: Redirect[] = [
       target: { style: 'query-param', path: '/search', param: 'q' },
     },
   },
-  { id: 2, from: 'www.booking.com', to: 'ecohotels.com', description: 'Book hotels with visible sustainability certifications and a tree planted for every stay', enabled: false, effort: 'easy' },
+  { id: 2, from: 'www.booking.com', to: 'ecohotels.com', description: 'Book hotels with visible sustainability certifications and a tree planted for every stay', mode: 'suggest', effort: 'easy' },
   {
     id: 3,
     from: 'zara.com',
     to: 'vinted.com',
     description: 'Buy and sell secondhand clothes instead of buying new fast fashion',
-    enabled: false,
+    mode: 'suggest',
     effort: 'easy',
     // Confirmed: Zara's search lives at /us/en/search?searchTerm=<term>;
     // Vinted's at /catalog?search_text=<term>.
@@ -104,7 +126,7 @@ export const defaultRedirects: Redirect[] = [
     from: 'shein.com',
     to: 'thredup.com',
     description: 'Thrift pre-loved clothing online instead of buying new fast fashion',
-    enabled: false,
+    mode: 'suggest',
     effort: 'easy',
     // Confirmed: SHEIN encodes the term in the path itself, e.g.
     // /pdsearch/jeans/ (no query param), while ThredUp uses /search?q=<term>.
@@ -118,7 +140,7 @@ export const defaultRedirects: Redirect[] = [
     from: 'bestbuy.com',
     to: 'backmarket.com',
     description: 'Buy refurbished phones, laptops and gadgets instead of new, cutting e-waste and manufacturing',
-    enabled: false,
+    mode: 'suggest',
     effort: 'easy',
     // Confirmed: Best Buy's search is /site/searchpage.jsp?st=<term>; Back
     // Market's is /en-us/search?q=<term>.
@@ -132,7 +154,7 @@ export const defaultRedirects: Redirect[] = [
     from: 'www.amazon.com',
     to: 'earthhero.com',
     description: 'Shop a curated store of sustainable everyday goods, from home to personal care',
-    enabled: false,
+    mode: 'suggest',
     effort: 'medium',
     // Confirmed: Amazon's search is /s?k=<term>. EarthHero runs on Shopify,
     // whose storefront search is always /search?q=<term>.
@@ -141,15 +163,15 @@ export const defaultRedirects: Redirect[] = [
       target: { style: 'query-param', path: '/search', param: 'q' },
     },
   },
-  { id: 7, from: 'airbnb.com', to: 'ecobnb.com', description: 'Book stays that meet eco-friendly criteria, from organic farmhouses to green apartments', enabled: false, effort: 'medium' },
-  { id: 8, from: 'www.doordash.com', to: 'toogoodtogo.com', description: 'Pick up discounted surplus food from local shops instead of ordering delivery', enabled: false, effort: 'medium' },
-  { id: 9, from: 'barnesandnoble.com', to: 'thriftbooks.com', description: 'Buy used books instead of new copies, usually at a lower price', enabled: false, effort: 'medium' },
+  { id: 7, from: 'airbnb.com', to: 'ecobnb.com', description: 'Book stays that meet eco-friendly criteria, from organic farmhouses to green apartments', mode: 'suggest', effort: 'medium' },
+  { id: 8, from: 'www.doordash.com', to: 'toogoodtogo.com', description: 'Pick up discounted surplus food from local shops instead of ordering delivery', mode: 'suggest', effort: 'medium' },
+  { id: 9, from: 'barnesandnoble.com', to: 'thriftbooks.com', description: 'Buy used books instead of new copies, usually at a lower price', mode: 'suggest', effort: 'medium' },
   {
     id: 10,
     from: 'www.bing.com',
     to: 'oceanhero.today',
     description: 'Search and fund ocean-bound plastic recovery, roughly one bottle per five searches by its own count',
-    enabled: false,
+    mode: 'suggest',
     effort: 'medium',
     // Bing's search is confirmed at /search?q=<term>. OceanHero's own
     // /search path is confirmed too (it's explicitly blocked in their
@@ -163,11 +185,11 @@ export const defaultRedirects: Redirect[] = [
       target: { style: 'query-param', path: '/web', param: 'q' },
     },
   },
-  { id: 11, from: 'mail.google.com', to: 'posteo.de', description: 'Ad-free, private email run on renewable electricity, for a small monthly fee', enabled: false, effort: 'hard' },
-  { id: 12, from: 'workspace.google.com', to: 'infomaniak.com', description: 'Swiss email, storage and office tools hosted in renewable-powered data centers', enabled: false, effort: 'hard' },
-  { id: 13, from: 'mailchimp.com', to: 'ecosend.io', description: 'Email marketing that keeps campaigns lightweight and plants trees to offset their emissions', enabled: false, effort: 'hard' },
-  { id: 14, from: 'www.godaddy.com', to: 'greengeeks.com', description: 'Web hosting that matches its energy use with renewable energy credits', enabled: false, effort: 'hard' },
-  { id: 15, from: 'analytics.google.com', to: 'withcabin.com', description: 'Privacy-first, carbon-aware website analytics', enabled: false, effort: 'hard' },
+  { id: 11, from: 'mail.google.com', to: 'posteo.de', description: 'Ad-free, private email run on renewable electricity, for a small monthly fee', mode: 'suggest', effort: 'hard' },
+  { id: 12, from: 'workspace.google.com', to: 'infomaniak.com', description: 'Swiss email, storage and office tools hosted in renewable-powered data centers', mode: 'suggest', effort: 'hard' },
+  { id: 13, from: 'mailchimp.com', to: 'ecosend.io', description: 'Email marketing that keeps campaigns lightweight and plants trees to offset their emissions', mode: 'suggest', effort: 'hard' },
+  { id: 14, from: 'www.godaddy.com', to: 'greengeeks.com', description: 'Web hosting that matches its energy use with renewable energy credits', mode: 'suggest', effort: 'hard' },
+  { id: 15, from: 'analytics.google.com', to: 'withcabin.com', description: 'Privacy-first, carbon-aware website analytics', mode: 'suggest', effort: 'hard' },
 ]
 
 const normalizeEffort = (value: unknown): RedirectEffort => {
@@ -176,23 +198,34 @@ const normalizeEffort = (value: unknown): RedirectEffort => {
 }
 
 
-export function normalizeRedirects(redirects: Redirect[] = []): Redirect[] {
+// Reads a stored pair's mode. Data saved before modes existed only has an
+// `enabled` boolean, converted so that nobody's current experience changes:
+// on -> 'redirect'; off and never touched -> 'suggest' (those pairs were
+// already showing the old "want to turn it on?" banner on every visit);
+// off because the user said so -> 'off'.
+export function normalizeMode(redirect: { mode?: unknown; enabled?: unknown; userConfigured?: unknown }): RedirectMode {
+  if (redirect.mode === 'off' || redirect.mode === 'suggest' || redirect.mode === 'redirect') return redirect.mode
+  if (redirect.enabled) return 'redirect'
+  return redirect.userConfigured ? 'off' : 'suggest'
+}
+
+export function normalizeRedirects(redirects: StoredRedirect[] = []): Redirect[] {
   return redirects
     .filter((redirect) => redirect && typeof redirect.from === 'string' && redirect.from.trim().length > 0)
-    .map((redirect) => ({
+    .map(({ enabled: _legacyEnabled, ...redirect }) => ({
       ...redirect,
       id: Number.isFinite(redirect.id) ? Number(redirect.id) : Date.now() + Math.random(),
       from: redirect.from.trim().replace(/^https?:\/\//i, '').replace(/\/$/, '').toLowerCase(),
       to: redirect.to.trim().replace(/^https?:\/\//i, '').replace(/\/$/, '').toLowerCase(),
       description: redirect.description?.trim() ?? '',
-      enabled: Boolean(redirect.enabled),
+      mode: normalizeMode({ ...redirect, enabled: _legacyEnabled }),
       effort: normalizeEffort(redirect.effort),
       userConfigured: Boolean(redirect.userConfigured),
     }))
     .filter((redirect, index, items) => items.findIndex((item) => item.from === redirect.from) === index)
 }
 
-export function mergeRedirects(currentDefaults: Redirect[], storedRedirects: Redirect[] = []): Redirect[] {
+export function mergeRedirects(currentDefaults: Redirect[], storedRedirects: StoredRedirect[] = []): Redirect[] {
   const normalizedDefaults = normalizeRedirects(currentDefaults)
   const normalizedStored = normalizeRedirects(storedRedirects)
   const storedBySource = new Map(normalizedStored.map((redirect) => [redirect.from, redirect]))
@@ -207,7 +240,7 @@ export function mergeRedirects(currentDefaults: Redirect[], storedRedirects: Red
       from: defaultRedirect.from,
       to: defaultRedirect.to,
       description: defaultRedirect.description,
-      enabled: storedRedirect ? Boolean(storedRedirect.enabled) : Boolean(defaultRedirect.enabled),
+      mode: storedRedirect ? storedRedirect.mode : defaultRedirect.mode,
       effort: defaultRedirect.effort,
       // Whether the user has ever explicitly decided this one, not just
       // inherited whatever defaultRedirects shipped with -- see the field's
@@ -289,24 +322,31 @@ function applySearchTerm(url: URL, location: SearchMappingLocation, term: string
   url.search = ''
 }
 
-export function resolveRedirectTarget(currentUrl: string, redirects: Redirect[] = defaultRedirects): string | null {
-  const parsedCurrentUrl = new URL(currentUrl)
-
-  // Find the longest matching enabled redirect without allocating intermediate
-  // arrays or performing a full sort — this reduces CPU and GC pressure on the
-  // page's main thread.
+// The longest `from` that matches `hostname` among the redirects `include`
+// accepts, found without allocating intermediate arrays or performing a full
+// sort -- this runs on the page's main thread on every matching page load.
+function findLongestMatch(hostname: string, redirects: Redirect[], include: (redirect: Redirect) => boolean): Redirect | null {
   let selected: Redirect | null = null
   for (let i = 0; i < redirects.length; i++) {
     const redirect = redirects[i]
-    if (!redirect.enabled) continue
-    if (!matchesHostname(parsedCurrentUrl.hostname, redirect.from)) continue
+    if (!include(redirect)) continue
+    if (!matchesHostname(hostname, redirect.from)) continue
 
     if (selected === null || redirect.from.length > selected.from.length) {
       selected = redirect
     }
   }
 
-  if (selected === null) return null
+  return selected
+}
+
+// Where visiting `currentUrl` should send the user for this particular pair,
+// carrying over the search term when the pair has a matching searchMapping.
+// Returns null when the page already is that target. Shared by the redirect
+// overlay (resolveRedirectTarget) and the suggestion banner's "Go to ..."
+// button (resolveSuggestion), so both land in exactly the same place.
+export function resolveTargetUrl(currentUrl: string, selected: Redirect): string | null {
+  const parsedCurrentUrl = new URL(currentUrl)
   const selectedTarget = /^https?:\/\//i.test(selected.to) ? new URL(selected.to) : new URL(`https://${selected.to}`)
   const targetUrl = new URL(parsedCurrentUrl.href)
 
@@ -346,17 +386,28 @@ export function resolveRedirectTarget(currentUrl: string, redirects: Redirect[] 
   return targetUrl.toString()
 }
 
-// Finds the pair the "greener alternative available" nudge banner should
-// offer for the current page, or null if none applies. Uses the same
-// longest-hostname-match logic as resolveRedirectTarget above, but over
-// *all* redirects rather than just enabled ones -- the whole point is to
-// catch a pair that's currently off. The candidate only qualifies when it's
-// both off (`!enabled`) and never explicitly decided (`!userConfigured`):
-// an enabled pair doesn't need nudging (it's already redirecting, and
-// resolveRedirectTarget will have claimed that hostname), and a pair the
-// user already answered "No" (or toggled off/on themselves) is marked
-// userConfigured and should never be nudged again.
-export function resolveNudgeCandidate(currentUrl: string, redirects: Redirect[] = defaultRedirects): Redirect | null {
+// The URL the redirect overlay should count down to for the current page:
+// the most specific pair in 'redirect' mode that matches its hostname, or
+// null when none does.
+export function resolveRedirectTarget(currentUrl: string, redirects: Redirect[] = defaultRedirects): string | null {
+  const { hostname } = new URL(currentUrl)
+  const selected = findLongestMatch(hostname, redirects, (redirect) => redirect.mode === 'redirect')
+
+  return selected ? resolveTargetUrl(currentUrl, selected) : null
+}
+
+export type Suggestion = {
+  redirect: Redirect
+  targetUrl: string
+}
+
+// The pair the suggestion banner should offer on the current page, with the
+// URL its "Go to ..." button leads to, or null if there's nothing to
+// suggest. Picks the most specific match among *all* pairs, then only
+// returns it when that pair is in 'suggest' mode -- so a more specific pair
+// the user turned off (or set to redirect) is never shadowed by a broader
+// one that happens to be suggesting.
+export function resolveSuggestion(currentUrl: string, redirects: Redirect[] = defaultRedirects): Suggestion | null {
   let hostname: string
   try {
     hostname = new URL(currentUrl).hostname
@@ -364,19 +415,11 @@ export function resolveNudgeCandidate(currentUrl: string, redirects: Redirect[] 
     return null
   }
 
-  let selected: Redirect | null = null
-  for (let i = 0; i < redirects.length; i++) {
-    const redirect = redirects[i]
-    if (!matchesHostname(hostname, redirect.from)) continue
+  const selected = findLongestMatch(hostname, redirects, () => true)
+  if (selected === null || selected.mode !== 'suggest') return null
 
-    if (selected === null || redirect.from.length > selected.from.length) {
-      selected = redirect
-    }
-  }
-
-  if (selected === null || selected.enabled || selected.userConfigured) return null
-
-  return selected
+  const targetUrl = resolveTargetUrl(currentUrl, selected)
+  return targetUrl ? { redirect: selected, targetUrl } : null
 }
 
 type StorageItems = Record<string, unknown>
@@ -541,7 +584,7 @@ export async function readStoredRedirects(): Promise<Redirect[]> {
   }
 
   const hasStored = Array.isArray(stored) && stored.length > 0
-  const merged = mergeRedirects(defaultRedirects, hasStored ? (stored as Redirect[]) : defaultRedirects)
+  const merged = mergeRedirects(defaultRedirects, hasStored ? (stored as StoredRedirect[]) : defaultRedirects)
 
   // Only write back when the merge actually changed something (first run, or
   // a shipped-defaults update reaching an existing user). This matters

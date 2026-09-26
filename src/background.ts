@@ -1,8 +1,8 @@
 import {
   REDIRECT_OVERLAY_DISMISSAL_QUERY_MESSAGE,
   REDIRECT_OVERLAY_DISMISSAL_SET_MESSAGE,
-  NUDGE_DISMISSAL_QUERY_MESSAGE,
-  NUDGE_DISMISSAL_SET_MESSAGE,
+  SUGGESTION_DISMISSAL_QUERY_MESSAGE,
+  SUGGESTION_DISMISSAL_SET_MESSAGE,
 } from './redirects'
 
 console.log(
@@ -49,7 +49,7 @@ function getSessionArea() {
 
 // Tracks, per browser tab, whether the user has dismissed some
 // once-per-domain-visit UI (the redirect overlay's "Stay on this site", or
-// the nudge banner's "Remind me later") for the domain currently open in
+// the suggestion banner's × button) for the domain currently open in
 // that tab. Each caller gets its own tracker (a different `storageKeyPrefix`)
 // so the two dismissals never bleed into each other, but they share the
 // same re-arming rule: a hostname that doesn't match what's on file for
@@ -121,7 +121,7 @@ function createTabDismissalTracker(storageKeyPrefix: string) {
 }
 
 const redirectOverlayDismissal = createTabDismissalTracker('greendirect.tabDismissal')
-const nudgeBannerDismissal = createTabDismissalTracker('greendirect.nudgeDismissal')
+const suggestionBannerDismissal = createTabDismissalTracker('greendirect.suggestionDismissal')
 
 // Safari has no side panel surface, so the sidebar page opens in a tab.
 let sidebarTabId: number | undefined
@@ -216,12 +216,12 @@ if (isFirefoxLike) {
         redirectOverlayDismissal.save(tabId, {hostname: message.hostname, dismissed: true})
       }
 
-      if (message.type === NUDGE_DISMISSAL_QUERY_MESSAGE && message.hostname) {
-        return nudgeBannerDismissal.resolveDismissed(tabId, message.hostname).then((dismissed) => ({dismissed}))
+      if (message.type === SUGGESTION_DISMISSAL_QUERY_MESSAGE && message.hostname) {
+        return suggestionBannerDismissal.resolveDismissed(tabId, message.hostname).then((dismissed) => ({dismissed}))
       }
 
-      if (message.type === NUDGE_DISMISSAL_SET_MESSAGE && message.hostname) {
-        nudgeBannerDismissal.save(tabId, {hostname: message.hostname, dismissed: true})
+      if (message.type === SUGGESTION_DISMISSAL_SET_MESSAGE && message.hostname) {
+        suggestionBannerDismissal.save(tabId, {hostname: message.hostname, dismissed: true})
       }
 
       return undefined
@@ -229,7 +229,7 @@ if (isFirefoxLike) {
 
     browser.tabs.onRemoved.addListener((tabId) => {
       redirectOverlayDismissal.clear(tabId)
-      nudgeBannerDismissal.clear(tabId)
+      suggestionBannerDismissal.clear(tabId)
     })
   }
 } else if (typeof chrome !== 'undefined') {
@@ -248,18 +248,18 @@ if (isFirefoxLike) {
       redirectOverlayDismissal.save(tabId, {hostname: message.hostname, dismissed: true})
     }
 
-    if (message.type === NUDGE_DISMISSAL_QUERY_MESSAGE && message.hostname) {
-      void nudgeBannerDismissal.resolveDismissed(tabId, message.hostname).then((dismissed) => sendResponse({dismissed}))
+    if (message.type === SUGGESTION_DISMISSAL_QUERY_MESSAGE && message.hostname) {
+      void suggestionBannerDismissal.resolveDismissed(tabId, message.hostname).then((dismissed) => sendResponse({dismissed}))
       return true // keep the message channel open for the async sendResponse above
     }
 
-    if (message.type === NUDGE_DISMISSAL_SET_MESSAGE && message.hostname) {
-      nudgeBannerDismissal.save(tabId, {hostname: message.hostname, dismissed: true})
+    if (message.type === SUGGESTION_DISMISSAL_SET_MESSAGE && message.hostname) {
+      suggestionBannerDismissal.save(tabId, {hostname: message.hostname, dismissed: true})
     }
   })
 
   chrome.tabs.onRemoved.addListener((tabId) => {
     redirectOverlayDismissal.clear(tabId)
-    nudgeBannerDismissal.clear(tabId)
+    suggestionBannerDismissal.clear(tabId)
   })
 }

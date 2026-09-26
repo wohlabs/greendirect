@@ -150,10 +150,10 @@ test('firefox: first read seeds the defaults and a saved toggle persists', async
     const first = await readStoredRedirects()
     assert.deepEqual(first, mergeRedirects(defaultRedirects, defaultRedirects))
 
-    await saveRedirects(first.map((redirect) => (redirect.id === 1 ? { ...redirect, enabled: false, userConfigured: true } : redirect)))
+    await saveRedirects(first.map((redirect) => (redirect.id === 1 ? { ...redirect, mode: 'off' as const, userConfigured: true } : redirect)))
 
     const reread = (await readStoredRedirects()).find((redirect) => redirect.id === 1)
-    assert.equal(reread?.enabled, false)
+    assert.equal(reread?.mode, 'off')
     assert.equal(reread?.userConfigured, true)
   })
 })
@@ -184,10 +184,12 @@ test('firefox: re-reading on every storage change settles instead of feeding its
 test('firefox: data saved by an older version is migrated once, then left alone', async () => {
   const store = createBackingStore({ firesOnIdenticalWrites: true })
 
-  // An older shape: no userConfigured flag, a stale target, and a host that has
-  // since been removed from defaultRedirects.
+  // An older shape: `enabled` instead of `mode`, no userConfigured flag, a
+  // stale target, and a host that has since been removed from
+  // defaultRedirects.
   store.data[REDIRECT_STORAGE_KEY] = [
     { id: 1, from: 'www.google.com', to: 'old-target.example', enabled: false, effort: 'easy' },
+    { id: 3, from: 'zara.com', to: 'vinted.com', enabled: true, effort: 'easy' },
     { id: 42, from: 'removed.example', to: 'gone.example', enabled: true, effort: 'easy' },
   ]
 
@@ -199,7 +201,10 @@ test('firefox: data saved by an older version is migrated once, then left alone'
       await settle()
 
       const google = migrated.find((redirect) => redirect.from === 'www.google.com')
-      assert.equal(google?.enabled, false, "the user's toggle is kept")
+      const zara = migrated.find((redirect) => redirect.from === 'zara.com')
+      assert.equal(google?.mode, 'suggest', 'off and never touched keeps showing a banner, now as Suggest')
+      assert.equal(zara?.mode, 'redirect', 'a pair that was on keeps redirecting')
+      assert.ok(migrated.every((redirect) => !('enabled' in redirect)), 'the old field is dropped')
       assert.equal(google?.to, 'ecosia.org', 'shipped target replaces the stale one')
       assert.ok(!migrated.some((redirect) => redirect.from === 'removed.example'), 'removed hosts are pruned')
 
@@ -214,7 +219,7 @@ test('firefox: data saved by an older version is migrated once, then left alone'
 
 test('a failed read never overwrites saved settings with defaults', async () => {
   const store = createBackingStore({ firesOnIdenticalWrites: true })
-  const saved = mergeRedirects(defaultRedirects, defaultRedirects).map((redirect) => ({ ...redirect, enabled: false, userConfigured: true }))
+  const saved = mergeRedirects(defaultRedirects, defaultRedirects).map((redirect) => ({ ...redirect, mode: 'off' as const, userConfigured: true }))
   store.data[REDIRECT_STORAGE_KEY] = saved
 
   const globals = firefoxGlobals(store)
@@ -239,11 +244,11 @@ test('chromium: callback-based chrome.storage round-trips', async () => {
 
     try {
       const first = await readStoredRedirects()
-      await saveRedirects(first.map((redirect) => (redirect.id === 2 ? { ...redirect, enabled: false, userConfigured: true } : redirect)))
+      await saveRedirects(first.map((redirect) => (redirect.id === 2 ? { ...redirect, mode: 'off' as const, userConfigured: true } : redirect)))
       await settle()
 
       const reread = (await readStoredRedirects()).find((redirect) => redirect.id === 2)
-      assert.equal(reread?.enabled, false)
+      assert.equal(reread?.mode, 'off')
       assert.equal(reread?.userConfigured, true)
     } finally {
       stop()

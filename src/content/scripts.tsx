@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from 'react'
 import ReactDOM from 'react-dom/client'
 import RedirectOverlay from './RedirectOverlay'
-import NudgeBanner from './NudgeBanner'
+import SuggestionBanner from './SuggestionBanner'
 import './styles.css'
 import {
   readStoredRedirects,
@@ -9,12 +9,14 @@ import {
   onStorageChanged,
   sendExtensionMessage,
   resolveRedirectTarget,
-  resolveNudgeCandidate,
+  resolveSuggestion,
+  resolveTargetUrl,
   REDIRECT_OVERLAY_DISMISSAL_QUERY_MESSAGE,
   REDIRECT_OVERLAY_DISMISSAL_SET_MESSAGE,
-  NUDGE_DISMISSAL_QUERY_MESSAGE,
-  NUDGE_DISMISSAL_SET_MESSAGE,
-  type Redirect,
+  SUGGESTION_DISMISSAL_QUERY_MESSAGE,
+  SUGGESTION_DISMISSAL_SET_MESSAGE,
+  type RedirectMode,
+  type Suggestion,
 } from '../redirects'
 
 console.log('[From the page context] Hello from content_scripts!')
@@ -38,28 +40,30 @@ function notifyOverlayDismissed(hostname: string) {
 }
 
 // Same "dismissed for the rest of this tab's visit to this domain" tracking
-// as queryOverlayDismissed/notifyOverlayDismissed above, but for the nudge
-// banner's "Remind me later" -- kept as a separate message pair (and a
+// as queryOverlayDismissed/notifyOverlayDismissed above, but for the
+// suggestion banner's × button -- kept as a separate message pair (and a
 // separate per-tab record in background.ts) so answering one doesn't affect
 // the other.
-function queryNudgeDismissed(hostname: string): Promise<boolean> {
-  return sendExtensionMessage({type: NUDGE_DISMISSAL_QUERY_MESSAGE, hostname})
+function querySuggestionDismissed(hostname: string): Promise<boolean> {
+  return sendExtensionMessage({type: SUGGESTION_DISMISSAL_QUERY_MESSAGE, hostname})
     .then((response) => Boolean((response as {dismissed?: boolean} | undefined)?.dismissed))
     .catch(() => false)
 }
 
-function notifyNudgeDismissed(hostname: string) {
-  sendExtensionMessage({type: NUDGE_DISMISSAL_SET_MESSAGE, hostname}).catch(() => {})
+function notifySuggestionDismissed(hostname: string) {
+  sendExtensionMessage({type: SUGGESTION_DISMISSAL_SET_MESSAGE, hostname}).catch(() => {})
 }
 
 /**
- * Root of the content script's React tree: renders the redirect overlay
- * whenever the current page matches an enabled redirect. When a redirect is
- * enabled the overlay -- not an instant `window.location.assign` -- is what
- * performs the redirect, giving the user a 5 second window to cancel ("Stay
- * on this site") or jump ahead ("Redirect now"). A page with no matching (or
- * no enabled) redirect never shows the overlay, so it behaves exactly as
- * before.
+ * Root of the content script's React tree. Renders, depending on the mode of
+ * the pair matching the current page:
+ * - 'redirect': the redirect overlay. The overlay -- not an instant
+ *   `window.location.assign` -- is what performs the redirect, giving the
+ *   user a 5 second window to cancel ("Stay on this site") or jump ahead
+ *   ("Redirect now").
+ * - 'suggest': the suggestion banner, which never navigates on its own.
+ * - 'off', or no matching pair: nothing, so the page behaves exactly as if
+ *   the extension weren't there.
  *
  * "Stay on this site" is remembered for the rest of this tab's visit to this
  * domain: it survives further navigations within the domain (each of which
@@ -71,17 +75,17 @@ function notifyNudgeDismissed(hostname: string) {
  */
 function Root() {
   const [pendingTarget, setPendingTarget] = useState<string | null>(null)
-  const [nudgeCandidate, setNudgeCandidate] = useState<Redirect | null>(null)
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
   const dismissedRef = useRef(false)
-  const nudgeDismissedRef = useRef(false)
+  const suggestionDismissedRef = useRef(false)
 
   const checkRedirect = useCallback(async () => {
     if (!dismissedRef.current) {
       dismissedRef.current = await queryOverlayDismissed(window.location.hostname)
     }
 
-    if (!nudgeDismissedRef.current) {
-      nudgeDismissedRef.current = await queryNudgeDismissed(window.location.hostname)
+    if (!suggestionDismissedRef.current) {
+      suggestionDismissedRef.current = await querySuggestionDismissed(window.location.hostname)
     }
 
     const redirects = await readStoredRedirects()
@@ -89,15 +93,14 @@ function Root() {
     const target = dismissedRef.current ? null : resolveRedirectTarget(window.location.href, redirects)
     setPendingTarget(target)
 
-    // A pair only ever needs the nudge when the redirect overlay above
-    // isn't already handling this hostname -- an enabled match always wins
-    // that same hostname lookup, and resolveNudgeCandidate only ever
-    // returns a pair that's off. Checking `target` here too keeps that
-    // invariant explicit rather than relying on the two resolvers never
-    // disagreeing.
-    const nudge =
-      target || nudgeDismissedRef.current ? null : resolveNudgeCandidate(window.location.href, redirects)
-    setNudgeCandidate(nudge)
+    // The banner only ever shows when the redirect overlay above isn't
+    // already handling this page. resolveSuggestion only returns a pair in
+    // 'suggest' mode, so the two shouldn't overlap anyway; checking `target`
+    // here too keeps that explicit rather than relying on the two resolvers
+    // never disagreeing.
+    const next =
+      target || suggestionDismissedRef.current ? null : resolveSuggestion(window.location.href, redirects)
+    setSuggestion(next)
   }, [])
 
   useEffect(() => {
@@ -119,43 +122,51 @@ function Root() {
     window.location.assign(pendingTarget)
   }, [pendingTarget])
 
-  // Persists the user's Yes/No answer on the nudge candidate (both count as
-  // "explicitly decided" -- see the userConfigured doc comment on Redirect
-  // in ../redirects) and clears it from screen immediately rather than
-  // waiting on the storage round-trip. Re-reads storage right before
-  // writing so this can't clobber a change made elsewhere (the sidebar, or
-  // another tab) in between.
-  const answerNudge = useCallback((id: number, patch: Partial<Redirect>) => {
-    setNudgeCandidate(null)
+  // Saves a mode chosen on the suggestion banner (it counts as an explicit
+  // choice -- see the userConfigured doc comment on Redirect in
+  // ../redirects) and clears the banner immediately rather than waiting on
+  // the storage round-trip. Re-reads storage right before writing so this
+  // can't clobber a change made elsewhere (the sidebar, or another tab) in
+  // between.
+  const chooseMode = useCallback((id: number, mode: RedirectMode) => {
+    setSuggestion(null)
     void readStoredRedirects()
       .then((redirects) => {
         const next = redirects.map((redirect) =>
-          redirect.id === id ? {...redirect, ...patch, userConfigured: true} : redirect
+          redirect.id === id ? {...redirect, mode, userConfigured: true} : redirect
         )
         return saveRedirects(next)
       })
       .catch(() => {})
   }, [])
 
-  const handleNudgeYes = useCallback(() => {
-    if (!nudgeCandidate) return
-    // Turning it on here doesn't redirect by itself -- the storage write
-    // triggers this same component's onStorageChange listener, which
+  // One-off trip to the alternative; no setting changes. Re-resolved from
+  // the live URL at click time in case the page changed it since the banner
+  // appeared (e.g. a new search on a single-page app).
+  const handleSuggestionGo = useCallback(() => {
+    if (!suggestion) return
+    const target = resolveTargetUrl(window.location.href, suggestion.redirect) ?? suggestion.targetUrl
+    window.location.assign(target)
+  }, [suggestion])
+
+  const handleAlwaysRedirect = useCallback(() => {
+    if (!suggestion) return
+    // Switching to 'redirect' doesn't navigate by itself -- the storage
+    // write triggers this same component's onStorageChanged listener, which
     // re-resolves the page and hands off to the normal RedirectOverlay
-    // countdown, same as if the user had flipped this switch in the
-    // sidebar.
-    answerNudge(nudgeCandidate.id, {enabled: true})
-  }, [nudgeCandidate, answerNudge])
+    // countdown, same as picking Redirect in the sidebar.
+    chooseMode(suggestion.redirect.id, 'redirect')
+  }, [suggestion, chooseMode])
 
-  const handleNudgeNo = useCallback(() => {
-    if (!nudgeCandidate) return
-    answerNudge(nudgeCandidate.id, {})
-  }, [nudgeCandidate, answerNudge])
+  const handleStopSuggesting = useCallback(() => {
+    if (!suggestion) return
+    chooseMode(suggestion.redirect.id, 'off')
+  }, [suggestion, chooseMode])
 
-  const handleNudgeRemindLater = useCallback(() => {
-    nudgeDismissedRef.current = true
-    notifyNudgeDismissed(window.location.hostname)
-    setNudgeCandidate(null)
+  const handleSuggestionDismiss = useCallback(() => {
+    suggestionDismissedRef.current = true
+    notifySuggestionDismissed(window.location.hostname)
+    setSuggestion(null)
   }, [])
 
   return (
@@ -167,12 +178,13 @@ function Root() {
           onRedirect={handleRedirectNow}
         />
       )}
-      {!pendingTarget && nudgeCandidate && (
-        <NudgeBanner
-          redirect={nudgeCandidate}
-          onYes={handleNudgeYes}
-          onNo={handleNudgeNo}
-          onRemindLater={handleNudgeRemindLater}
+      {!pendingTarget && suggestion && (
+        <SuggestionBanner
+          redirect={suggestion.redirect}
+          onGo={handleSuggestionGo}
+          onAlwaysRedirect={handleAlwaysRedirect}
+          onStopSuggesting={handleStopSuggesting}
+          onDismiss={handleSuggestionDismiss}
         />
       )}
     </>
