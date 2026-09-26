@@ -100,7 +100,7 @@ test('removed default hosts are pruned from persisted data', () => {
 test('searching a term on google redirects to the same term on ecosia', () => {
   assert.equal(
     resolveRedirectTarget('https://www.google.com/search?q=clothes', allRedirecting),
-    'https://ecosia.org/search?q=clothes'
+    'https://ecosia.org/search?method=index&ar=1&q=clothes'
   )
 })
 
@@ -207,7 +207,7 @@ test('resolveSuggestion offers a pair in suggest mode, with the same landing URL
   const suggestion = resolveSuggestion('https://www.google.com/search?q=clothes', defaultRedirects)
 
   assert.equal(suggestion?.redirect.from, 'www.google.com')
-  assert.equal(suggestion?.targetUrl, 'https://ecosia.org/search?q=clothes')
+  assert.equal(suggestion?.targetUrl, 'https://ecosia.org/search?method=index&ar=1&q=clothes')
   assert.equal(
     suggestion?.targetUrl,
     resolveRedirectTarget('https://www.google.com/search?q=clothes', allRedirecting),

@@ -25,7 +25,7 @@ export const MODE_LABELS: Record<RedirectMode, string> = {
 // param at all). For the 'path-segment' style, `path` is a template
 // containing exactly one `{query}` placeholder, e.g. '/pdsearch/{query}/'.
 export type SearchMappingLocation =
-  | { style: 'query-param'; path: string; param: string }
+  | { style: 'query-param'; path: string; param: string; extraParams?: Record<string, string> }
   | { style: 'path-segment'; path: string }
 
 // Lets a redirect carry over the actual search term instead of just
@@ -100,10 +100,11 @@ export const defaultRedirects: Redirect[] = [
     mode: 'suggest',
     effort: 'easy',
     // Confirmed: both google.com and ecosia.org serve search results at
-    // /search?q=<term>.
+    // /search?q=<term>. Ecosia's own search box also adds method=index and
+    // ar=1, so redirected searches carry the same two parameters.
     searchMapping: {
       source: { style: 'query-param', path: '/search', param: 'q' },
-      target: { style: 'query-param', path: '/search', param: 'q' },
+      target: { style: 'query-param', path: '/search', param: 'q', extraParams: { method: 'index', ar: '1' } },
     },
   },
   { id: 2, from: 'www.booking.com', to: 'ecohotels.com', description: 'Book hotels with visible sustainability certifications and a tree planted for every stay', mode: 'suggest', effort: 'easy' },
@@ -313,6 +314,9 @@ function applySearchTerm(url: URL, location: SearchMappingLocation, term: string
   if (location.style === 'query-param') {
     url.pathname = location.path
     url.search = ''
+    for (const [key, value] of Object.entries(location.extraParams ?? {})) {
+      url.searchParams.set(key, value)
+    }
     url.searchParams.set(location.param, term)
     return
   }
