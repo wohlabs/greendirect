@@ -19,9 +19,11 @@ type SuggestionBannerProps = {
  *   is picked up by scripts.tsx, which hands off to the normal
  *   RedirectOverlay countdown -- no separate redirect logic lives here.
  * - "Stop suggesting": switches the pair to 'off'.
- * - ×: hides the banner for the rest of this tab's visit to this domain,
- *   the same way the overlay's "Stay on this site" works; see
- *   querySuggestionDismissed/notifySuggestionDismissed in scripts.tsx.
+ * - "Not now" and ×: both hide the banner for the rest of this tab's visit
+ *   to this domain, the same way the overlay's "Stay on this site" works;
+ *   see querySuggestionDismissed/notifySuggestionDismissed in scripts.tsx.
+ *   They share one handler (onDismiss); "Not now" is just the labelled,
+ *   easier-to-find version of ×.
  *
  * Moving the pair up to 'redirect' and down to 'off' are deliberately given
  * the same visual weight, so saying no is exactly as easy as saying yes.
@@ -50,13 +52,18 @@ export default function SuggestionBanner({
           Greener alternative to <strong>{fromHostname}</strong>: <strong>{redirect.to}</strong>
         </p>
         {redirect.description && <p className="suggestion_banner_desc">{redirect.description}</p>}
-        <button
-          type="button"
-          className="suggestion_banner_btn suggestion_banner_btn_primary suggestion_banner_go"
-          onClick={onGo}
-        >
-          Go to {redirect.to}
-        </button>
+        <div className="suggestion_banner_primary_row">
+          <button
+            type="button"
+            className="suggestion_banner_btn suggestion_banner_btn_primary suggestion_banner_go"
+            onClick={onGo}
+          >
+            Go to {redirect.to}
+          </button>
+          <button type="button" className="suggestion_banner_btn suggestion_banner_btn_ghost" onClick={onDismiss}>
+            Not now
+          </button>
+        </div>
         <div className="suggestion_banner_actions">
           <button type="button" className="suggestion_banner_btn suggestion_banner_btn_ghost" onClick={onAlwaysRedirect}>
             Always redirect

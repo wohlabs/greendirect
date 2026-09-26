@@ -72,7 +72,7 @@ notes in most cases.
 - Unreleased: each site now has three modes -- Off, Suggest, Redirect --
   set with a three-stage flower toggle. Every site starts on Suggest, so
   nothing redirects until the user chooses it. The suggestion banner
-  ("Go to ...", "Always redirect", "Stop suggesting") replaces the old
+  ("Go to ...", "Not now", "Always redirect", "Stop suggesting") replaces the old
   "want to turn it on?" prompt. Existing settings carry over unchanged.
 - 1.0.0 (unreleased): initial version from the react template.
   Not yet submitted to any store.

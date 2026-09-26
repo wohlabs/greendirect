@@ -111,7 +111,8 @@ Chromium, V2 on Firefox):
     the normal RedirectOverlay countdown on the next storage-change check,
     exactly as if the user had picked Redirect in the sidebar.
   - "Stop suggesting" -- sets the pair to `'off'`.
-  - × -- doesn't touch storage; it hides the banner for the rest of the
+  - "Not now" and × -- both use the same `onDismiss` handler and don't touch
+    storage; they hide the banner for the rest of the
     tab's visit to that domain, reappearing on a new tab or after navigating
     away and back -- the exact same per-tab dismissal mechanism as "Stay on
     this site" above, tracked separately in `background.ts`

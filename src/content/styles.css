@@ -334,11 +334,15 @@
   background: rgba(255, 255, 255, 0.14);
 }
 
-/* "Go to <alternative>" sits on its own row above the two setting changes,
-   which share the second row at equal weight. */
-.suggestion_banner_go {
-  align-self: flex-start;
+/* "Go to <alternative>" and "Not now" share the first row (the one-off
+   choices that change no setting); the two setting changes below them share
+   the second row at equal weight. */
+.suggestion_banner_primary_row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
   margin-top: 0.15em;
+  flex-wrap: wrap;
 }
 
 .suggestion_banner_actions .suggestion_banner_btn {
