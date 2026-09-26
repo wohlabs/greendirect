@@ -75,7 +75,7 @@ export const defaultRedirects: Redirect[] = [
     from: 'www.google.com',
     to: 'ecosia.org',
     description: 'Search with an engine that puts its profits toward planting trees and renewable energy',
-    enabled: true,
+    enabled: false,
     effort: 'easy',
     // Confirmed: both google.com and ecosia.org serve search results at
     // /search?q=<term>.
@@ -84,13 +84,13 @@ export const defaultRedirects: Redirect[] = [
       target: { style: 'query-param', path: '/search', param: 'q' },
     },
   },
-  { id: 2, from: 'www.booking.com', to: 'ecohotels.com', description: 'Book hotels with visible sustainability certifications and a tree planted for every stay', enabled: true, effort: 'easy' },
+  { id: 2, from: 'www.booking.com', to: 'ecohotels.com', description: 'Book hotels with visible sustainability certifications and a tree planted for every stay', enabled: false, effort: 'easy' },
   {
     id: 3,
     from: 'zara.com',
     to: 'vinted.com',
     description: 'Buy and sell secondhand clothes instead of buying new fast fashion',
-    enabled: true,
+    enabled: false,
     effort: 'easy',
     // Confirmed: Zara's search lives at /us/en/search?searchTerm=<term>;
     // Vinted's at /catalog?search_text=<term>.
@@ -104,7 +104,7 @@ export const defaultRedirects: Redirect[] = [
     from: 'shein.com',
     to: 'thredup.com',
     description: 'Thrift pre-loved clothing online instead of buying new fast fashion',
-    enabled: true,
+    enabled: false,
     effort: 'easy',
     // Confirmed: SHEIN encodes the term in the path itself, e.g.
     // /pdsearch/jeans/ (no query param), while ThredUp uses /search?q=<term>.
@@ -118,7 +118,7 @@ export const defaultRedirects: Redirect[] = [
     from: 'bestbuy.com',
     to: 'backmarket.com',
     description: 'Buy refurbished phones, laptops and gadgets instead of new, cutting e-waste and manufacturing',
-    enabled: true,
+    enabled: false,
     effort: 'easy',
     // Confirmed: Best Buy's search is /site/searchpage.jsp?st=<term>; Back
     // Market's is /en-us/search?q=<term>.
