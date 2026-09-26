@@ -2,7 +2,7 @@
   "private": true,
   "name": "greendirect",
   "description": "Redirect popular sites to greener alternatives",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "license": "MIT",
   "type": "module",
   "dependencies": {
